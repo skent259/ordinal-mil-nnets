@@ -130,3 +130,5 @@ dmypy.json
 
 # images
 *.jpg
+*.png
+datasets/cifar-10

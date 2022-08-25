@@ -30,7 +30,7 @@ age_group = np.where(
 )
 
 df = pd.DataFrame(
-    {"subject": subject, "age": age, "age_group": age_group}, index=img_files
+    {"img_name": img_files, "subject": subject, "age": age, "age_group": age_group}
 )
 
 # split data into train, test, and validation sets
