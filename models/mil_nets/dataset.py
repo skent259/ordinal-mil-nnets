@@ -22,16 +22,17 @@ def load_dataset(dataset_nm, n_folds):
         List contains split datasets for k-Fold cross-validation.
     """
     # load data from file
-    data = sio.loadmat("./dataset/" + dataset_nm + ".mat")
+    data = sio.loadmat("./datasets/musk/" + dataset_nm + ".mat")
     ins_fea = data["x"]["data"][0, 0]
     if dataset_nm.startswith("musk"):
         bags_nm = data["x"]["ident"][0, 0]["milbag"][0, 0]
     else:
         bags_nm = data["x"]["ident"][0, 0]["milbag"][0, 0][:, 0]
     bags_label = data["x"]["nlab"][0, 0][:, 0] - 1
+    bags_label = np.array(bags_label, dtype=np.float32)
 
     # L2 norm for musk1 and musk2
-    if dataset_nm.startswith("newsgroups") is False:
+    if not dataset_nm.startswith("newsgroups"):
         mean_fea = np.mean(ins_fea, axis=0, keepdims=True) + 1e-6
         std_fea = np.std(ins_fea, axis=0, keepdims=True) + 1e-6
         ins_fea = np.divide(ins_fea - mean_fea, std_fea)
@@ -39,7 +40,7 @@ def load_dataset(dataset_nm, n_folds):
     # store data in bag level
     ins_idx_of_input = {}  # store instance index of input
     for id, bag_nm in enumerate(bags_nm):
-        if ins_idx_of_input.has_key(bag_nm):
+        if bag_nm in ins_idx_of_input:
             ins_idx_of_input[bag_nm].append(id)
         else:
             ins_idx_of_input[bag_nm] = [id]
@@ -53,9 +54,9 @@ def load_dataset(dataset_nm, n_folds):
 
     # random select 90% bags as train, others as test
     num_bag = len(bags_fea)
-    kf = KFold(num_bag, n_folds=n_folds, shuffle=True, random_state=None)
+    kf = KFold(n_splits=n_folds, shuffle=True, random_state=None)
     datasets = []
-    for train_idx, test_idx in kf:
+    for train_idx, test_idx in kf.split([0] * num_bag):
         dataset = {}
         dataset["train"] = [bags_fea[ibag] for ibag in train_idx]
         dataset["test"] = [bags_fea[ibag] for ibag in test_idx]

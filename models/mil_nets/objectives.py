@@ -3,7 +3,7 @@ File copied from https://github.com/yanyongluan/MINNs/tree/master/mil_nets/objec
 2022-09-15
 """
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 def bag_loss(y_true, y_pred):

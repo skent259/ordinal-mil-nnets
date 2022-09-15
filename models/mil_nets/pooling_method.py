@@ -3,7 +3,7 @@ File copied from https://github.com/yanyongluan/MINNs/tree/master/mil_nets/pooli
 2022-09-15
 """
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 def max_pooling(x):

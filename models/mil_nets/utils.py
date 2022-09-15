@@ -6,7 +6,9 @@ File copied from https://github.com/yanyongluan/MINNs/tree/master/mil_nets/utils
 from random import shuffle
 
 import numpy as np
-from keras.utils import np_utils
+
+# from tensorflow.keras.utils import np_utils
+# import np_utils
 
 
 # save batches, per batch contains instance features of a bag and bag label

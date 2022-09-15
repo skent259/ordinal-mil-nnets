@@ -3,10 +3,10 @@ File copied from https://github.com/yanyongluan/MINNs/tree/master/mil_nets/layer
 2022-09-15
 """
 
-from keras import activations
-from keras import backend as K
-from keras import initializers, regularizers
-from keras.layers import Layer
+from tensorflow.keras import activations
+from tensorflow.keras import backend as K
+from tensorflow.keras import initializers, regularizers
+from tensorflow.keras.layers import Layer
 
 from . import pooling_method as pooling
 
