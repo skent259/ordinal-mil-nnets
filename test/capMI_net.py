@@ -1,9 +1,10 @@
 """
-File copied from https://github.com/yanyongluan/MINNs/tree/master/mi_net.py
+File copied from https://github.com/yanyongluan/MINNs/blob/master/MI_Net.py
 2022-09-15
 """
 
 import argparse
+import random
 import sys
 import time
 from random import shuffle
@@ -12,18 +13,18 @@ from random import shuffle
 
 import numpy as np
 from models.mil_nets.dataset import load_dataset
-from models.mil_nets.layer import Score_pooling
+from models.mil_nets.layer import Feature_pooling
 from models.mil_nets.metrics import bag_accuracy
 from models.mil_nets.objectives import bag_loss
 from models.mil_nets.utils import convertToBatch
 from tensorflow.keras.layers import Dense, Dropout, Input, Layer
-from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import SGD
 from tensorflow.keras.regularizers import l2
 
 
 def parse_args():
-    """Parse input argument.
+    """Parse input arguments.
     Parameters
     -------------------
     No parameters.
@@ -32,7 +33,7 @@ def parse_args():
     args: argparser.Namespace class object
         An argparse.Namespace class object contains experimental hyper-parameters.
     """
-    parser = argparse.ArgumentParser(description="Train a mi-net")
+    parser = argparse.ArgumentParser(description="Train a MI-Net")
     parser.add_argument(
         "--dataset",
         dest="dataset",
@@ -77,7 +78,7 @@ def test_eval(model, test_set):
     Parameters
     -----------------
     model : keras.engine.training.Model object
-        The training mi-Net model.
+        The training MI-Net model.
     test_set : list
         A list of testing set contains all training bags features and labels.
     Returns
@@ -91,9 +92,9 @@ def test_eval(model, test_set):
     test_loss = np.zeros((num_test_batch, 1), dtype=float)
     test_acc = np.zeros((num_test_batch, 1), dtype=float)
     for ibatch, batch in enumerate(test_set):
-        result = model.test_on_batch({"input": batch[0]}, {"sp": batch[1]})
+        result = model.test_on_batch({"input": batch[0]}, {"fp": batch[1]})
         test_loss[ibatch] = result[0]
-        test_acc[ibatch] = result[1]
+        test_acc[ibatch][0] = result[1]
     return np.mean(test_loss), np.mean(test_acc)
 
 
@@ -102,7 +103,7 @@ def train_eval(model, train_set):
     Parameters
     -----------------
     model : keras.engine.training.Model object
-        The training mi-Net model.
+        The training MI-Net model.
     train_set : list
         A list of training set contains all training bags features and labels.
     Returns
@@ -117,15 +118,14 @@ def train_eval(model, train_set):
     train_acc = np.zeros((num_train_batch, 1), dtype=float)
     shuffle(train_set)
     for ibatch, batch in enumerate(train_set):
-        result = model.train_on_batch({"input": batch[0]}, {"sp": batch[1]})
-        # result = model.train_on_batch(batch[0], batch[1]) # similar, don't need the names
+        result = model.train_on_batch({"input": batch[0]}, {"fp": batch[1]})
         train_loss[ibatch] = result[0]
-        train_acc[ibatch] = result[1]
+        train_acc[ibatch][0] = result[1]
     return np.mean(train_loss), np.mean(train_acc)
 
 
-def mi_Net(dataset):
-    """Train and evaluate on mi-Net.
+def MI_Net(dataset):
+    """Train and evaluate on MI-Net.
     Parameters
     -----------------
     dataset : dict
@@ -133,7 +133,7 @@ def mi_Net(dataset):
     Returns
     -----------------
     test_acc : float
-        Testing accuracy of mi-Net.
+        Testing accuracy of MI-Net.
     """
     # load data and convert type
     train_bags = dataset["train"]
@@ -145,49 +145,27 @@ def mi_Net(dataset):
     dimension = train_set[0][0].shape[1]
 
     # data: instance feature, n*d, n = number of training instance
-    # data_input = Input(shape=(dimension,), dtype="float32", name="input")
+    data_input = Input(shape=(dimension,), dtype="float32", name="input")
 
-    # # fully-connected
-    # fc1 = Dense(256, activation="relu", kernel_regularizer=l2(args.weight_decay))(
-    #     data_input
-    # )
-    # fc2 = Dense(128, activation="relu", kernel_regularizer=l2(args.weight_decay))(fc1)
-    # fc3 = Dense(64, activation="relu", kernel_regularizer=l2(args.weight_decay))(fc2)
-
-    # # dropout
-    # dropout = Dropout(rate=0.5)(fc3)
-
-    # # score pooling
-    # sp = Score_pooling(
-    #     output_dim=1,
-    #     kernel_regularizer=l2(args.weight_decay),
-    #     pooling_mode=args.pooling_mode,
-    #     name="sp",
-    # )(dropout)
-
-    # model = Model(inputs=[data_input], outputs=[sp])
-    # sgd = SGD(lr=args.init_lr, decay=1e-4, momentum=args.momentum, nesterov=True)
-    # model.compile(loss=bag_loss, optimizer=sgd, metrics=[bag_accuracy])
-
-    # Alternate model specification
-    model = Sequential()
-    # data: instance feature, n*d, n = number of training instances
-    model.add(Input(shape=(dimension,), dtype="float32", name="input"))
-    # full connected
-    model.add(Dense(256, activation="relu", kernel_regularizer=l2(args.weight_decay)))
-    model.add(Dense(128, activation="relu", kernel_regularizer=l2(args.weight_decay)))
-    model.add(Dense(64, activation="relu", kernel_regularizer=l2(args.weight_decay)))
-    model.add(Dropout(rate=0.5))
-    # score pooling
-    model.add(
-        Score_pooling(
-            output_dim=1,
-            kernel_regularizer=l2(args.weight_decay),
-            pooling_mode=args.pooling_mode,
-            name="sp",
-        )
+    # fully-connected
+    fc1 = Dense(256, activation="relu", kernel_regularizer=l2(args.weight_decay))(
+        data_input
     )
+    fc2 = Dense(128, activation="relu", kernel_regularizer=l2(args.weight_decay))(fc1)
+    fc3 = Dense(64, activation="relu", kernel_regularizer=l2(args.weight_decay))(fc2)
 
+    # dropout
+    dropout = Dropout(rate=0.5)(fc3)
+
+    # features pooling
+    fp = Feature_pooling(
+        output_dim=1,
+        kernel_regularizer=l2(args.weight_decay),
+        pooling_mode=args.pooling_mode,
+        name="fp",
+    )(dropout)
+
+    model = Model(inputs=[data_input], outputs=[fp])
     sgd = SGD(lr=args.init_lr, decay=1e-4, momentum=args.momentum, nesterov=True)
     model.compile(loss=bag_loss, optimizer=sgd, metrics=[bag_accuracy])
 
@@ -206,7 +184,7 @@ def mi_Net(dataset):
             "  test_acc= {:.3f}".format(test_acc),
         )
     t2 = time.time()
-    print("run time:", (t2 - t1) / 60.0, "min")
+    print("run time:", (t2 - t1) / 60, "min")
     print("test_acc={:.3f}".format(test_acc))
 
     return test_acc
@@ -227,7 +205,7 @@ if __name__ == "__main__":
         dataset = load_dataset(args.dataset, n_folds)
         for ifold in range(n_folds):
             print("run=", irun, "  fold=", ifold)
-            acc[irun][ifold] = mi_Net(dataset[ifold])
-    print("mi-net mean accuracy = ", np.mean(acc))
+            acc[irun][ifold] = MI_Net(dataset[ifold])
+    print("MI-Net mean accuracy = ", np.mean(acc))
     print("std = ", np.std(acc))
 
