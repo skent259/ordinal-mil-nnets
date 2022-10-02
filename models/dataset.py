@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 from typing import Tuple
 
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+
 
 @dataclass
 class DataSet:
@@ -37,3 +41,116 @@ class DataSet:
         self.test = self.name + "_test.csv" if self.test is None else self.test
         self.valid = self.name + "_valid.csv" if self.valid is None else self.valid
 
+
+class MILImageDataGenerator(tf.keras.utils.Sequence):
+    """
+    Keras Sequence to pull in batches of bags in a MIL data set
+
+    NOTE: currently only works with `batch_size` = 1 unless all bags have 
+    the same bag_size. The numpy array can't convert different bag sizes into 
+    a single array. 
+
+    Thank you to following site for inspiration:
+    https://medium.com/analytics-vidhya/write-your-own-custom-data-generator-for-tensorflow-keras-1252b64e41c3
+    """
+
+    def __init__(
+        self, dataframe, directory, x_col, y_col, batch_size, shuffle, target_size
+    ):
+        # TODO: maybe add `rescale`?
+        # self, df, X_col, y_col, batch_size, input_size=(224, 224, 3), shuffle=True
+
+        self.df = dataframe.copy()
+        self.directory = directory
+        self.x_col = x_col
+        self.y_col = y_col
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.target_size = target_size
+
+        self.n = len(self.df)
+
+        label_keys = np.unique(self.df[self.y_col].explode())
+        self.label_keys = dict(zip(label_keys, np.arange(len(label_keys))))
+
+    def on_epoch_end(self):
+        if self.shuffle:
+            self.df = self.df.sample(frac=1).reset_index(drop=True)
+
+    def __get_input(self, paths, target_size):
+        return np.asarray([self.__get_image(i, target_size) for i in paths])
+
+    def __get_output(self, label, label_keys):
+        int_label = [label_keys[i] for i in label]
+        int_label = np.max(int_label)
+        return tf.keras.utils.to_categorical(int_label, num_classes=len(label_keys))
+
+    def __get_image(self, path, target_size):
+
+        path = self.directory + path
+        image = tf.keras.preprocessing.image.load_img(path)
+        image_arr = tf.keras.preprocessing.image.img_to_array(image)
+
+        image_arr = tf.image.resize(image_arr, (target_size[0], target_size[1])).numpy()
+
+        return image_arr / 255.0
+
+    def __getitem__(self, index):
+
+        batches = self.df[index * self.batch_size : (index + 1) * self.batch_size]
+
+        path_batch = batches[self.x_col]
+        label_batch = batches[self.y_col]
+
+        # Pull images and combine as array for each bag
+        X_batch = np.asarray(
+            [self.__get_input(i, self.target_size) for i in path_batch]
+        )
+
+        # y_batch = np.asarray([np.asarray(i) for i in batches[self.y_col]])
+        # y_batch = batches[self.y_col]
+        y_batch = np.asarray(
+            [self.__get_output(i, self.label_keys) for i in label_batch]
+        )
+
+        return X_batch, y_batch
+
+    def __len__(self):
+        return self.n // self.batch_size
+
+
+# TODO: consider moving to the datasets folder (maybe until a utils.py file)
+def convert_dataset_to_bag_level(df, bag_size, shuffle=True, seed=None):
+    """
+    Takes a pandas dataset and turns each column into a bag level representation.
+    """
+
+    def to_bag_column(x, bag_size):
+        """
+        Take a list or pandas Series and create a list of bags
+        """
+        row = 0
+        i = 0
+        bag_col = []
+        bag = []
+        while row < len(x):
+            bag.append(x[row])
+            row += 1
+            i += 1
+
+            if i >= bag_size:
+                bag_col.append(bag)
+                i = 0
+                bag = []
+
+        # add remaining instances to the last bag
+        bag_col[-1] = bag_col[-1] + bag
+
+        return bag_col
+
+    if shuffle:
+        df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
+
+    new_df = {i: to_bag_column(df[i], bag_size) for i in df.columns}
+
+    return pd.DataFrame(new_df)
