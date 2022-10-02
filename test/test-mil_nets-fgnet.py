@@ -5,6 +5,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 from models.dataset import DataSet, MILImageDataGenerator
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import (
@@ -64,33 +65,68 @@ test_generator = MILImageDataGenerator(
 ## Build model
 
 # NOTE: here we take advantage of TimeDistributed to carry the bag dimension
-BagWise = TimeDistributed
+BagWise = tf.keras.layers.TimeDistributed
 
+
+def MILPool(pooling_mode: str = "max"):
+    switch = {
+        "max": tf.keras.layers.GlobalMaxPool1D,
+        "mean": tf.keras.layers.GlobalAveragePooling1D,
+    }
+
+    return switch.get(pooling_mode, "Invalid Input")
+
+
+# TODO: turn these into thin wrappers of layers
+
+# Model 1: mi-net with softmax output (categorial)
+# model = Sequential()
+# model.add(Input(shape=(None,) + ds.img_size + (3,)))
+# model.add(BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")))
+# model.add(BagWise(Conv2D(32, (5, 5), activation="relu")))
+# model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+# model.add(Dropout(0.25))
+
+# model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
+# model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
+# model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+# model.add(Dropout(0.25))
+
+# model.add(BagWise(Flatten()))
+# model.add(BagWise(Dense(512, activation="relu")))
+# model.add(Dropout(0.5))
+
+# model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
+# model.add(GlobalMaxPool1D())
+
+# model.compile(
+#     optimizers.RMSprop(lr=0.0001), loss="categorical_crossentropy", metrics=["accuracy"]
+# )
+
+# Model 2: MI-net with softmax output (categorical)
 model = Sequential()
 model.add(Input(shape=(None,) + ds.img_size + (3,)))
-model.add(BagWise(Conv2D(32, (5, 5), padding="same")))
-# model.add(Conv2D(32, (5, 5), padding="same", input_shape=ds.img_size + (3,)))
-model.add(Activation("relu"))
-model.add(BagWise(Conv2D(32, (5, 5))))
-model.add(Activation("relu"))
-model.add(
-    BagWise(MaxPooling2D(pool_size=(3, 3)))
-)  # important: (1, ...) to avoid pooling bags)
+model.add(BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")))
+model.add(BagWise(Conv2D(32, (5, 5), activation="relu")))
+model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
 model.add(Dropout(0.25))
 
-model.add(BagWise(Conv2D(64, (3, 3), padding="same")))
-model.add(Activation("relu"))
-model.add(BagWise(Conv2D(64, (3, 3))))
-model.add(Activation("relu"))
+model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
+model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
+model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+model.add(Dropout(0.25))
+
+model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
+model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
 model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
 model.add(Dropout(0.25))
 
 model.add(BagWise(Flatten()))
-model.add(BagWise(Dense(512)))
-model.add(Activation("relu"))
+model.add(BagWise(Dense(256, activation="relu")))
 model.add(Dropout(0.5))
+
+model.add(MILPool(pooling_mode="max")())
 model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
-model.add(GlobalMaxPool1D())
 
 model.compile(
     optimizers.RMSprop(lr=0.0001), loss="categorical_crossentropy", metrics=["accuracy"]
