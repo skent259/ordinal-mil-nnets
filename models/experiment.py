@@ -21,6 +21,7 @@ class ExperimentConfig:
     epochs : int
         The number of epochs to train the model with.
     """
+
     ordinal_method: str
     mil_method: str
     data_set: str
@@ -29,4 +30,5 @@ class ExperimentConfig:
     epochs: int
 
 
-
+# TODO: maybe include features of the randomly genereated bags from ordinal images
+# i.e. `n_inst` (number of instances in the bag)

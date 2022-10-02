@@ -131,7 +131,7 @@ dmypy.json
 # images
 *.jpg
 *.png
-results.csv
+results*.csv
 datasets/cifar-10
 
 # mat data files

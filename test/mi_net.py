@@ -191,6 +191,13 @@ def mi_Net(dataset):
     sgd = SGD(lr=args.init_lr, decay=1e-4, momentum=args.momentum, nesterov=True)
     model.compile(loss=bag_loss, optimizer=sgd, metrics=[bag_accuracy])
 
+    # NOTE: args is a global variable, it might be better to pull in directly based on experiment class,
+    # especially for args.pooling_mode, args.weight_decay
+
+    # NOTE: for bag_loss, it seeems that it's easier in tf to make sure output matches input size, i.e.
+    # to use instance-extended labels. Otherwise tf throws an error. So, for my own custom loss, just
+    # need to use a similar structure to bag_loss.
+
     # train model
     t1 = time.time()
     num_batch = len(train_set)

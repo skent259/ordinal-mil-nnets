@@ -1,10 +1,11 @@
+import ast
 import sys
 
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
 import numpy as np
 import pandas as pd
-from models.dataset import DataSet
+from models.dataset import DataSet, MILImageDataGenerator
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import (
     Activation,
@@ -12,85 +13,91 @@ from tensorflow.keras.layers import (
     Dense,
     Dropout,
     Flatten,
+    GlobalAveragePooling1D,
+    GlobalMaxPool1D,
+    Input,
     MaxPooling2D,
+    TimeDistributed,
 )
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-ds = DataSet(name="fgnet", img_size=(128, 128))
+ds = DataSet(name="fgnet_bag", dir="datasets/fgnet/", img_size=(128, 128))
 
-train_df = pd.read_csv(ds.dir + ds.train, dtype=str)
-test_df = pd.read_csv(ds.dir + ds.test, dtype=str)
+train_df = pd.read_csv(ds.dir + ds.train, dtype=str, index_col=0)
+train_df = train_df.applymap(ast.literal_eval)
+valid_df = pd.read_csv(ds.dir + ds.valid, dtype=str, index_col=0)
+valid_df = valid_df.applymap(ast.literal_eval)
+test_df = pd.read_csv(ds.dir + ds.test, dtype=str, index_col=0)
+test_df = test_df.applymap(ast.literal_eval)
 
 
 ## Add generator functions
-datagen = ImageDataGenerator(rescale=1.0 / 255.0, validation_split=0.25)
-train_generator = datagen.flow_from_dataframe(
+train_generator = MILImageDataGenerator(
     dataframe=train_df,
     directory=ds.dir + "images/",
     x_col="img_name",
     y_col="age_group",
-    subset="training",
-    batch_size=32,
-    seed=42,
+    batch_size=1,
     shuffle=True,
-    class_mode="categorical",
     target_size=ds.img_size,
 )
-valid_generator = datagen.flow_from_dataframe(
-    dataframe=train_df,
+valid_generator = MILImageDataGenerator(
+    dataframe=valid_df,
     directory=ds.dir + "images/",
     x_col="img_name",
     y_col="age_group",
-    subset="validation",
-    batch_size=32,
-    seed=42,
+    batch_size=1,
     shuffle=True,
-    class_mode="categorical",
     target_size=ds.img_size,
 )
-
-test_datagen = ImageDataGenerator(rescale=1.0 / 255.0)
-test_generator = test_datagen.flow_from_dataframe(
+test_generator = MILImageDataGenerator(
     dataframe=test_df,
     directory=ds.dir + "images/",
     x_col="img_name",
     y_col="age_group",
-    batch_size=32,
-    seed=42,
-    shuffle=False,
-    class_mode="categorical",
+    batch_size=1,
+    shuffle=True,
     target_size=ds.img_size,
 )
 
 
 ## Build model
+
+# NOTE: here we take advantage of TimeDistributed to carry the bag dimension
+BagWise = TimeDistributed
+
 model = Sequential()
-model.add(Conv2D(32, (5, 5), padding="same", input_shape=ds.img_size + (3,)))
+model.add(Input(shape=(None,) + ds.img_size + (3,)))
+model.add(BagWise(Conv2D(32, (5, 5), padding="same")))
+# model.add(Conv2D(32, (5, 5), padding="same", input_shape=ds.img_size + (3,)))
 model.add(Activation("relu"))
-model.add(Conv2D(32, (5, 5)))
+model.add(BagWise(Conv2D(32, (5, 5))))
 model.add(Activation("relu"))
-model.add(MaxPooling2D(pool_size=(3, 3)))
+model.add(
+    BagWise(MaxPooling2D(pool_size=(3, 3)))
+)  # important: (1, ...) to avoid pooling bags)
 model.add(Dropout(0.25))
 
-model.add(Conv2D(64, (3, 3), padding="same"))
+model.add(BagWise(Conv2D(64, (3, 3), padding="same")))
 model.add(Activation("relu"))
-model.add(Conv2D(64, (3, 3)))
+model.add(BagWise(Conv2D(64, (3, 3))))
 model.add(Activation("relu"))
-model.add(MaxPooling2D(pool_size=(3, 3)))
+model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
 model.add(Dropout(0.25))
 
-model.add(Flatten())
-model.add(Dense(512))
+model.add(BagWise(Flatten()))
+model.add(BagWise(Dense(512)))
 model.add(Activation("relu"))
 model.add(Dropout(0.5))
-model.add(Dense(6, activation="softmax"))
+model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
+model.add(GlobalMaxPool1D())
 
 model.compile(
     optimizers.RMSprop(lr=0.0001), loss="categorical_crossentropy", metrics=["accuracy"]
 )
 
 # model.summary()
+
 
 ## Train model
 STEP_SIZE_TRAIN = train_generator.n // train_generator.batch_size
@@ -101,7 +108,7 @@ model.fit(
     steps_per_epoch=STEP_SIZE_TRAIN,
     validation_data=valid_generator,
     validation_steps=STEP_SIZE_VALID,
-    epochs=10,
+    epochs=3,
 )
 
 ## Evaluate model
@@ -110,14 +117,14 @@ model.evaluate(valid_generator, steps=STEP_SIZE_VALID)
 model.evaluate(test_generator, steps=STEP_SIZE_TEST)
 
 ## Predict output
-test_generator.reset()
-pred = model.predict_generator(test_generator, verbose=1)
+pred = model.predict(test_generator, verbose=1)
 predicted_class_indices = np.argmax(pred, axis=1)
 
-labels = train_generator.class_indices
+labels = train_generator.label_keys
 labels = dict((v, k) for k, v in labels.items())
 predictions = [labels[k] for k in predicted_class_indices]
 
-filenames = test_generator.filenames
-results = pd.DataFrame({"id": filenames, "label": predictions})
-results.to_csv(ds.dir + "results.csv", index=False)
+results = test_df.copy()
+# results["y_true"] = results.age_group.apply(max)
+results["predictions"] = predictions
+results.to_csv(ds.dir + "results_mil_nets.csv", index=False)
