@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 
@@ -51,18 +52,36 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
     Thank you to following site for inspiration:
     https://medium.com/analytics-vidhya/write-your-own-custom-data-generator-for-tensorflow-keras-1252b64e41c3
+
+    To perform data augmentation, change one of the following default arguments (range given after):
+        * horizontal_flip: (True or False)
+        * crop_range: (0.0, 1.0)
+        * contrast_lower: (-inf, inf)
+        * contrast_upper: (-inf, inf)
+        * brightness_delta: [0, 1)
+        * hue_delta: [-1, 1]
+        * quality_min: [0, 100]
+        * quality_max: [0, 100]
     """
 
     def __init__(
         self,
-        dataframe,
+        dataframe: pd.DataFrame,
         directory: str,
         x_col: str,
         y_col: str,
         batch_size: int,
         shuffle: bool,
         class_mode: str,
-        target_size,
+        target_size: Tuple[int],
+        horizontal_flip: bool = False,
+        crop_range: float = 0,
+        contrast_lower: float = 1.0,
+        contrast_upper: float = 1.0,
+        brightness_delta: float = 0.0,
+        hue_delta: float = 0.0,
+        quality_min: int = 100,
+        quality_max: int = 100,
     ):
         # TODO: maybe add `rescale`?
 
@@ -74,6 +93,14 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
         self.shuffle = shuffle
         self.class_mode = class_mode
         self.target_size = target_size
+        self.horizontal_flip = horizontal_flip
+        self.crop_range = crop_range
+        self.contrast_lower = contrast_lower
+        self.contrast_upper = contrast_upper
+        self.brightness_delta = brightness_delta
+        self.hue_delta = hue_delta
+        self.quality_min = quality_min
+        self.quality_max = quality_max
 
         self.n = len(self.df)
 
@@ -103,11 +130,12 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
         path = self.directory + path
         image = tf.keras.preprocessing.image.load_img(path)
-        image_arr = tf.keras.preprocessing.image.img_to_array(image)
+        image_arr = tf.keras.preprocessing.image.img_to_array(image) / 255.0
 
+        image_arr = self.__augment_image(image_arr)  # only if non-default args used
         image_arr = tf.image.resize(image_arr, (target_size[0], target_size[1])).numpy()
 
-        return image_arr / 255.0
+        return image_arr
 
     def __getitem__(self, index):
 
@@ -131,3 +159,32 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
     def __len__(self):
         return self.n // self.batch_size
+
+    def __augment_image(self, img: np.ndarray):
+
+        if self.horizontal_flip:
+            img = tf.image.random_flip_left_right(img)
+
+        if self.crop_range > 0:
+            crop_height = round(img.shape[0] * (1 - self.crop_range))
+            crop_width = round(img.shape[1] * (1 - self.crop_range))
+
+            img = tf.image.random_crop(img, size=[crop_height, crop_width, 3])
+
+        if self.contrast_lower != 1.0 or self.contrast_upper != 1.0:
+            img = tf.image.random_contrast(
+                img, lower=self.contrast_lower, upper=self.contrast_upper
+            )
+        if self.brightness_delta > 0:
+            img = tf.image.random_brightness(img, max_delta=self.brightness_delta)
+        if self.hue_delta > 0:
+            img = tf.image.random_hue(img, max_delta=self.hue_delta)
+
+        if self.quality_min != 100 or self.quality_max != 100:
+            img = tf.image.random_jpeg_quality(
+                img,
+                min_jpeg_quality=self.quality_min,
+                max_jpeg_quality=self.quality_max,
+            )
+
+        return img

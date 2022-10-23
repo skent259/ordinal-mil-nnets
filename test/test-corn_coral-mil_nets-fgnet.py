@@ -28,6 +28,16 @@ valid_df = valid_df.applymap(ast.literal_eval)
 test_df = pd.read_csv(ds.dir + ds.test, dtype=str, index_col=0)
 test_df = test_df.applymap(ast.literal_eval)
 
+aug_args = {
+    "horizontal_flip": True,
+    "crop_range": 0.1,
+    "contrast_lower": 0.5,
+    "contrast_upper": 2.0,
+    "brightness_delta": 0.2,
+    "hue_delta": 0.1,
+    "quality_min": 50,
+    "quality_max": 100,
+}
 
 ## Add generator functions
 train_generator = MILImageDataGenerator(
@@ -39,6 +49,7 @@ train_generator = MILImageDataGenerator(
     shuffle=True,
     class_mode="sparse",
     target_size=ds.img_size,
+    **aug_args
 )
 valid_generator = MILImageDataGenerator(
     dataframe=valid_df,
@@ -148,7 +159,7 @@ model.fit(
     steps_per_epoch=STEP_SIZE_TRAIN,
     validation_data=valid_generator,
     validation_steps=STEP_SIZE_VALID,
-    epochs=5,
+    epochs=10,
 )
 
 ## Evaluate model
