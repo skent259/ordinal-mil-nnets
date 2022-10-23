@@ -4,12 +4,10 @@ import sys
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
 import coral_ordinal as coral
-import numpy as np
 import pandas as pd
 import scipy
 import tensorflow as tf
 from models.dataset import DataSet, MILImageDataGenerator
-from tensorflow.keras import optimizers
 from tensorflow.keras.layers import (
     Activation,
     Conv2D,
@@ -20,9 +18,8 @@ from tensorflow.keras.layers import (
     MaxPooling2D,
 )
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-ds = DataSet(name="fgnet_bag", dir="datasets/fgnet/", img_size=(128, 128))
+ds = DataSet(name="fgnet_bag_wr", dir="datasets/fgnet/", img_size=(128, 128))
 
 train_df = pd.read_csv(ds.dir + ds.train, dtype=str, index_col=0)
 train_df = train_df.applymap(ast.literal_eval)
@@ -151,7 +148,7 @@ model.fit(
     steps_per_epoch=STEP_SIZE_TRAIN,
     validation_data=valid_generator,
     validation_steps=STEP_SIZE_VALID,
-    epochs=3,
+    epochs=5,
 )
 
 ## Evaluate model

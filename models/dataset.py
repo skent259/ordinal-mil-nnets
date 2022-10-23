@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import Tuple
 
 import numpy as np
-import pandas as pd
 import tensorflow as tf
 
 
@@ -132,40 +131,3 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
     def __len__(self):
         return self.n // self.batch_size
-
-
-# TODO: consider moving to the datasets folder (maybe until a utils.py file)
-def convert_dataset_to_bag_level(df, bag_size, shuffle=True, seed=None):
-    """
-    Takes a pandas dataset and turns each column into a bag level representation.
-    """
-
-    def to_bag_column(x, bag_size):
-        """
-        Take a list or pandas Series and create a list of bags
-        """
-        row = 0
-        i = 0
-        bag_col = []
-        bag = []
-        while row < len(x):
-            bag.append(x[row])
-            row += 1
-            i += 1
-
-            if i >= bag_size:
-                bag_col.append(bag)
-                i = 0
-                bag = []
-
-        # add remaining instances to the last bag
-        bag_col[-1] = bag_col[-1] + bag
-
-        return bag_col
-
-    if shuffle:
-        df = df.sample(frac=1, random_state=seed).reset_index(drop=True)
-
-    new_df = {i: to_bag_column(df[i], bag_size) for i in df.columns}
-
-    return pd.DataFrame(new_df)
