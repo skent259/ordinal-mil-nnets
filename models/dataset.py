@@ -20,9 +20,9 @@ class DataSet:
     train : str
         The file that describes the training information. This file should be contained in `dir`.
     test : str
-        The file that describes the training information. This file should be contained in `dir`.
+        The file that describes the testing information. This file should be contained in `dir`.
     valid : str
-        The file that describes the training information. This file should be contained in `dir`.
+        The file that describes the validation information. This file should be contained in `dir`.
     img_size : List[int]
         The size of the image to transform to.
     """
@@ -55,10 +55,17 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
     """
 
     def __init__(
-        self, dataframe, directory, x_col, y_col, batch_size, shuffle, target_size
+        self,
+        dataframe,
+        directory: str,
+        x_col: str,
+        y_col: str,
+        batch_size: int,
+        shuffle: bool,
+        class_mode: str,
+        target_size,
     ):
         # TODO: maybe add `rescale`?
-        # self, df, X_col, y_col, batch_size, input_size=(224, 224, 3), shuffle=True
 
         self.df = dataframe.copy()
         self.directory = directory
@@ -66,12 +73,13 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
         self.y_col = y_col
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.class_mode = class_mode
         self.target_size = target_size
 
         self.n = len(self.df)
 
-        label_keys = np.unique(self.df[self.y_col].explode())
-        self.label_keys = dict(zip(label_keys, np.arange(len(label_keys))))
+        class_indices = np.unique(self.df[self.y_col].explode())
+        self.class_indices = dict(zip(class_indices, np.arange(len(class_indices))))
 
     def on_epoch_end(self):
         if self.shuffle:
@@ -80,10 +88,17 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
     def __get_input(self, paths, target_size):
         return np.asarray([self.__get_image(i, target_size) for i in paths])
 
-    def __get_output(self, label, label_keys):
-        int_label = [label_keys[i] for i in label]
-        int_label = np.max(int_label)
-        return tf.keras.utils.to_categorical(int_label, num_classes=len(label_keys))
+    def __get_output(self, label, class_indices):
+        int_label = [class_indices[i] for i in label]
+        int_label = np.max(int_label)  # QUESTION: why did I do this?
+
+        if self.class_mode == "sparse":
+            return float(int_label)
+        if self.class_mode == "categorical":
+            return tf.keras.utils.to_categorical(
+                int_label, num_classes=len(class_indices)
+            )
+        return None
 
     def __get_image(self, path, target_size):
 
@@ -110,7 +125,7 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
         # y_batch = np.asarray([np.asarray(i) for i in batches[self.y_col]])
         # y_batch = batches[self.y_col]
         y_batch = np.asarray(
-            [self.__get_output(i, self.label_keys) for i in label_batch]
+            [self.__get_output(i, self.class_indices) for i in label_batch]
         )
 
         return X_batch, y_batch
