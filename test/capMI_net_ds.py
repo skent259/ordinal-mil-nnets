@@ -13,11 +13,11 @@ from random import shuffle
 
 
 import numpy as np
-from models.mil_nets.dataset import load_dataset
-from models.mil_nets.layer import Feature_pooling
-from models.mil_nets.metrics import bag_accuracy
-from models.mil_nets.objectives import bag_loss
-from models.mil_nets.utils import convertToBatch
+from models.mil_nets_old.dataset import load_dataset
+from models.mil_nets_old.layer import Feature_pooling
+from models.mil_nets_old.metrics import bag_accuracy
+from models.mil_nets_old.objectives import bag_loss
+from models.mil_nets_old.utils import convertToBatch
 from tensorflow.keras.layers import Dense, Dropout, Input, Layer, average
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import SGD
