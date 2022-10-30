@@ -1,9 +1,36 @@
 from dataclasses import dataclass
+from enum import Enum
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
+
+class DataSetType(Enum):
+    FGNET = "fgnet"
+
+
+DATASET_PARAM = {
+    DataSetType.FGNET: {
+        "dir": "datasets/fgnet/",
+        "x_col": "img_name",
+        "y_col": "age_group",
+        "img_size": (128, 128, 3),
+        "n_classes": 6,
+        "class_mode": "sparse",
+        "augmentation_args": {
+            "horizontal_flip": True,
+            "crop_range": 0.1,
+            "contrast_lower": 0.5,
+            "contrast_upper": 2.0,
+            "brightness_delta": 0.2,
+            "hue_delta": 0.1,
+            "quality_min": 50,
+            "quality_max": 100,
+        },
+    }
+}
 
 
 @dataclass
@@ -13,33 +40,40 @@ class DataSet:
 
     Attributes
     ----------
+    data_set_type : DataSetType
+        The data set type which directly maps to information about the directory to use, x and y 
+        columns, image size, and more. See DATASET_PARAM
     name : str 
         The name of the dataset.
-    dir : str
-        The directory of the dataset.
+    params : dict
+        The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', 'class_mode', and 
+        'augmentation_args'. 
     train : str
-        The file that describes the training information. This file should be contained in `dir`.
+        The file that describes the training information. 
     test : str
-        The file that describes the testing information. This file should be contained in `dir`.
+        The file that describes the testing information. 
     valid : str
-        The file that describes the validation information. This file should be contained in `dir`.
-    img_size : List[int]
-        The size of the image to transform to.
+        The file that describes the validation information. 
     """
 
+    data_set_type: DataSetType
     name: str
-    img_size: Tuple[int]
-    dir: str = None
-    train: str = None
-    test: str = None
-    valid: str = None
 
-    def __post_init__(self):
-        # can't set default values based on self.name in init, must do post initialization
-        self.dir = "datasets/" + self.name + "/" if self.dir is None else self.dir
-        self.train = self.name + "_train.csv" if self.train is None else self.train
-        self.test = self.name + "_test.csv" if self.test is None else self.test
-        self.valid = self.name + "_valid.csv" if self.valid is None else self.valid
+    @property
+    def params(self) -> dict:
+        return DATASET_PARAM[self.data_set_type]
+
+    @property
+    def train(self) -> str:
+        return self.name + "_train.csv"
+
+    @property
+    def test(self) -> str:
+        return self.name + "_test.csv"
+
+    @property
+    def valid(self) -> str:
+        return self.name + "_valid.csv"
 
 
 class MILImageDataGenerator(tf.keras.utils.Sequence):

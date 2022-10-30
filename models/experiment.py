@@ -1,4 +1,12 @@
+import ast
 from dataclasses import dataclass
+from typing import Tuple
+
+import pandas as pd
+import scipy
+
+from models.architecture import MILType, ModelArchitecture, OrdinalType
+from models.dataset import DataSet, DataSetType, MILImageDataGenerator
 
 
 @dataclass
@@ -8,12 +16,14 @@ class ExperimentConfig:
 
     Attributes
     ----------
-    ordinal_method : str 
+    ordinal_method : OrdinalType 
         The ordinal method to use. One of 'corn', 'coral' ...
-    mil_method : str
-        The multiple instance learning method to use. One of ...
-    data_set : str 
+    mil_method : MILType
+        The multiple instance learning method to use. One of 'mi-net', 'MI-net', ...
+    data_set_type : DataSetType 
         The data set to use. One of ... This also defines the underlying model, see XXX.py 
+    data_set_name: str
+        The name of the data set to use. 
     batch_size : int
         The number of training examples to use in each batch.
     learning_rate : float
@@ -22,13 +32,150 @@ class ExperimentConfig:
         The number of epochs to train the model with.
     """
 
-    ordinal_method: str
-    mil_method: str
-    data_set: str
+    ordinal_method: OrdinalType
+    mil_method: MILType
+    data_set_type: DataSetType
+    data_set_name: str
     batch_size: int
     learning_rate: float
     epochs: int
 
+    @property
+    def data_set(self) -> DataSet:
+        return DataSet(data_set_type=self.data_set_type, name=self.data_set_name)
 
-# TODO: maybe include features of the randomly genereated bags from ordinal images
-# i.e. `n_inst` (number of instances in the bag)
+    @property
+    def model_architecture(self):
+        return ModelArchitecture(
+            ordinal_type=self.ordinal_method,
+            mil_type=self.mil_method,
+            data_set_type=self.data_set.data_set_type,
+            data_set_img_size=self.data_set.params["img_size"],
+            n_classes=self.data_set.params["n_classes"],
+            pooling_mode="max",
+        )
+
+
+class ExperimentRunner(object):
+    """
+    Runs the experiment
+    """
+
+    def __init__(self, config: ExperimentConfig):
+        self.config = config
+        self.data_set = config.data_set
+        self.model_architecture = config.model_architecture
+
+    def run(self):
+        print("Running experiment...")
+
+        train_df = self.read_data("train")
+        valid_df = self.read_data("valid")
+        test_df = self.read_data("test")
+
+        train_generator = self.make_data_generator(train_df)
+        valid_generator = self.make_data_generator(valid_df)
+        test_generator = self.make_data_generator(test_df)
+        self.class_indices = train_generator.class_indices
+
+        self.model = self.model_architecture.build()
+
+        self.train(train_generator, valid_generator)
+
+        results = self.predict(test_generator)
+
+        print(results)
+
+        # n_classes = len(train_generator.class_indices)
+
+        # TODO: want checkpointing if possible
+        # TODO: consider that some data sets might not have validation data...
+        # SOLUTION: can add a `train()` method `
+        return None
+
+    def read_data(self, type: str):
+        ds = self.config.data_set
+
+        fname = {
+            "train": ds.params["dir"] + ds.train,
+            "test": ds.params["dir"] + ds.test,
+            "valid": ds.params["dir"] + ds.valid,
+        }
+
+        df = pd.read_csv(fname[type], dtype=str, index_col=0)
+        df = df.applymap(ast.literal_eval)
+        return df
+
+    def make_data_generator(self, dataframe):
+        ds = self.config.data_set
+
+        return MILImageDataGenerator(
+            dataframe=dataframe,
+            directory=ds.params["dir"] + "images/",
+            x_col=ds.params["x_col"],
+            y_col=ds.params["y_col"],
+            batch_size=1,
+            shuffle=True,
+            class_mode=ds.params["class_mode"],
+            target_size=ds.params["img_size"],
+            **ds.params["augmentation_args"]
+        )
+
+    def train(
+        self,
+        train_generator: MILImageDataGenerator,
+        valid_generator: MILImageDataGenerator,
+    ) -> None:
+
+        STEP_SIZE_TRAIN = train_generator.n // train_generator.batch_size
+        STEP_SIZE_VALID = valid_generator.n // valid_generator.batch_size
+        # STEP_SIZE_TEST = test_generator.n // test_generator.batch_size
+        self.model.fit(
+            x=train_generator,
+            steps_per_epoch=STEP_SIZE_TRAIN,
+            validation_data=valid_generator,
+            validation_steps=STEP_SIZE_VALID,
+            epochs=self.config.epochs,
+        )
+
+    def predict(self, test_generator: MILImageDataGenerator) -> pd.DataFrame:
+        ds = self.config.data_set
+
+        if self.config.ordinal_method is OrdinalType.CORAL:
+            ordinal_logits = self.model.predict(test_generator, verbose=1)
+            cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
+            predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
+            # don't add 1 because we are 0 indexing
+
+        # labels = train_generator.class_indices
+        labels = dict((v, k) for k, v in self.class_indices.items())
+        predictions = [labels[k] for k in predicted_class_indices]
+
+        results = test_generator.df.copy()
+        results["predictions"] = predictions
+        # results.to_csv(ds.params["dir"] + "results_corn_coral-mil_nets.csv", index=False)
+        return results
+
+    def evaluate(self):
+        """
+        Evaluate the model run and record the metrics of interest
+        """
+        pass
+
+
+if __name__ == "__main__":
+    exp_config = ExperimentConfig(
+        ordinal_method=OrdinalType.CORAL,
+        mil_method=MILType.CAP_MI_NET,
+        data_set_type=DataSetType.FGNET,
+        data_set_name="fgnet_bag_wr",
+        batch_size=1,
+        learning_rate=0.05,
+        epochs=1,
+    )
+
+    print(exp_config.model_architecture.build().summary())
+
+    exp = ExperimentRunner(exp_config)
+
+    exp.run()
