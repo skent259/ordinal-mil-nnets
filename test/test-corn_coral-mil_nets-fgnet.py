@@ -7,7 +7,6 @@ import coral_ordinal as coral
 import pandas as pd
 import scipy
 import tensorflow as tf
-from models.dataset import DataSet, MILImageDataGenerator
 from tensorflow.keras.layers import (
     Activation,
     Conv2D,
@@ -19,13 +18,18 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Sequential
 
-ds = DataSet(name="fgnet_bag_wr", dir="datasets/fgnet/", img_size=(128, 128))
+from models.dataset import DataSet, DataSetType, MILImageDataGenerator
 
-train_df = pd.read_csv(ds.dir + ds.train, dtype=str, index_col=0)
+ds = DataSet(DataSetType.FGNET, name="fgnet_bag_wr")
+# ds = DataSet(name="fgnet_bag_wr", dir="datasets/fgnet/", img_size=(128, 128))
+
+train_df = ds.read_data("train")
+
+train_df = pd.read_csv(ds.params["dir"] + ds.train, dtype=str, index_col=0)
 train_df = train_df.applymap(ast.literal_eval)
-valid_df = pd.read_csv(ds.dir + ds.valid, dtype=str, index_col=0)
+valid_df = pd.read_csv(ds.params["dir"] + ds.valid, dtype=str, index_col=0)
 valid_df = valid_df.applymap(ast.literal_eval)
-test_df = pd.read_csv(ds.dir + ds.test, dtype=str, index_col=0)
+test_df = pd.read_csv(ds.params["dir"] + ds.test, dtype=str, index_col=0)
 test_df = test_df.applymap(ast.literal_eval)
 
 aug_args = {
@@ -42,34 +46,34 @@ aug_args = {
 ## Add generator functions
 train_generator = MILImageDataGenerator(
     dataframe=train_df,
-    directory=ds.dir + "images/",
+    directory=ds.params["dir"] + "images/",
     x_col="img_name",
     y_col="age_group",
     batch_size=1,
     shuffle=True,
     class_mode="sparse",
-    target_size=ds.img_size,
+    target_size=ds.params["img_size"],
     **aug_args
 )
 valid_generator = MILImageDataGenerator(
     dataframe=valid_df,
-    directory=ds.dir + "images/",
+    directory=ds.params["dir"] + "images/",
     x_col="img_name",
     y_col="age_group",
     batch_size=1,
     shuffle=True,
     class_mode="sparse",
-    target_size=ds.img_size,
+    target_size=ds.params["img_size"],
 )
 test_generator = MILImageDataGenerator(
     dataframe=test_df,
-    directory=ds.dir + "images/",
+    directory=ds.params["dir"] + "images/",
     x_col="img_name",
     y_col="age_group",
     batch_size=1,
     shuffle=True,
     class_mode="sparse",
-    target_size=ds.img_size,
+    target_size=ds.params["img_size"],
 )
 
 n_classes = len(train_generator.class_indices)
@@ -118,7 +122,7 @@ def MILPool(pooling_mode: str = "max"):
 
 # Model 2: MI-net with softmax output (categorical)
 model = Sequential()
-model.add(Input(shape=(None,) + ds.img_size + (3,)))
+model.add(Input(shape=(None,) + ds.params["img_size"]))
 model.add(BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")))
 model.add(BagWise(Conv2D(32, (5, 5), activation="relu")))
 model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
@@ -140,11 +144,13 @@ model.add(Dropout(0.5))
 
 model.add(MILPool(pooling_mode="max")())
 # model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
-model.add(coral.CoralOrdinal(n_classes))
+# model.add(coral.CoralOrdinal(n_classes))
+model.add(coral.CornOrdinal(n_classes))
 
 model.compile(
     optimizer=tf.keras.optimizers.Adam(lr=0.05),
-    loss=coral.OrdinalCrossEntropy(num_classes=n_classes),
+    # loss=coral.OrdinalCrossEntropy(num_classes=n_classes),
+    loss=coral.CornOrdinalCrossEntropy(),
     metrics=[coral.MeanAbsoluteErrorLabels()],
 )
 
@@ -159,7 +165,7 @@ model.fit(
     steps_per_epoch=STEP_SIZE_TRAIN,
     validation_data=valid_generator,
     validation_steps=STEP_SIZE_VALID,
-    epochs=20,
+    epochs=2,
 )
 
 ## Evaluate model
@@ -168,9 +174,13 @@ model.evaluate(valid_generator, steps=STEP_SIZE_VALID)
 model.evaluate(test_generator, steps=STEP_SIZE_TEST)
 
 ## Predict output
-# test_generator.reset()
+# For CORAL, outputs are P(y > r_k)
+# ordinal_logits = model.predict(test_generator, verbose=1)
+# cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
+
+# For CORN, outputs are conditional probs  P(y > r_k | y > r_{k-1})
 ordinal_logits = model.predict(test_generator, verbose=1)
-cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
+cum_probs = pd.DataFrame(coral.corn_cumprobs(ordinal_logits))
 
 # cum_probs.round(3).head()
 # tensor_probs = coral.ordinal_softmax(ordinal_logits)
@@ -178,6 +188,8 @@ cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
 # probs_df.round(3).head()
 
 predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
+# predicted_class_indices = coral.cumprobs_to_label(cum_probs, threshold=0.5)
+# predicted_class_indices = pd.Series(predicted_class_indices)
 # don't add 1 because we are 0 indexing
 
 labels = train_generator.class_indices

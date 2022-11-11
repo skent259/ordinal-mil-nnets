@@ -2,6 +2,7 @@ import ast
 from dataclasses import dataclass
 from typing import Tuple
 
+import coral_ordinal as coral
 import pandas as pd
 import scipy
 
@@ -147,13 +148,16 @@ class ExperimentRunner(object):
             predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
             # don't add 1 because we are 0 indexing
 
-        # labels = train_generator.class_indices
+        if self.config.ordinal_method is OrdinalType.CORN:
+            ordinal_logits = self.model.predict(test_generator, verbose=1)
+            cum_probs = pd.DataFrame(coral.corn_cumprobs(ordinal_logits))
+            predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
+
         labels = dict((v, k) for k, v in self.class_indices.items())
         predictions = [labels[k] for k in predicted_class_indices]
 
         results = test_generator.df.copy()
         results["predictions"] = predictions
-        # results.to_csv(ds.params["dir"] + "results_corn_coral-mil_nets.csv", index=False)
         return results
 
     def evaluate(self):

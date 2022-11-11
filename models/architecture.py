@@ -103,11 +103,14 @@ class ModelArchitecture:
         if self.ordinal_type is OrdinalType.CORAL:
             return coral.OrdinalCrossEntropy(num_classes=self.n_classes)
         if self.ordinal_type is OrdinalType.CORN:
-            return coral.CornOrdinalCrossEntropy(num_classes=self.n_classes)
+            return coral.CornOrdinalCrossEntropy()
 
     @property
     def ordinal_metrics(self):
-        coral.MeanAbsoluteErrorLabels()
+        if self.ordinal_type is OrdinalType.CORAL:
+            return coral.MeanAbsoluteErrorLabels()
+        if self.ordinal_type is OrdinalType.CORN:
+            return coral.MeanAbsoluteErrorLabels(corn_logits=True)
         # TODO: need more metrics here...
 
     @property
