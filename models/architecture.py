@@ -4,17 +4,20 @@ from typing import Tuple
 
 import coral_ordinal as coral
 import tensorflow as tf
+from tensorflow.keras import Model
 from tensorflow.keras.layers import (
     Activation,
     Conv2D,
     Dense,
     Dropout,
     Flatten,
+    GlobalAveragePooling2D,
     Input,
     MaxPooling2D,
 )
 from tensorflow.keras.models import Sequential
 
+from models.clm_qwk.resnet import bagwise_residual_block
 from models.dataset import DataSetType
 from models.mil_nets.layer import BagWise, MILPool
 
@@ -44,9 +47,11 @@ class ModelArchitecture:
     pooling_mode: str = "max"
 
     def build(self):
-        arch = self.base_layers + self.last_layers
-        model = Sequential(arch)
+        inputs = self.input_layer()
+        base = self.base_layers(inputs)
+        last = self.last_layers(base)
 
+        model = Model(inputs=inputs, outputs=last)
         model.compile(
             optimizer=tf.keras.optimizers.Adam(lr=0.05),
             loss=self.ordinal_loss,
@@ -55,58 +60,63 @@ class ModelArchitecture:
 
         return model
 
-    @property
-    def base_layers(self) -> Tuple:
-        if self.data_set_type == DataSetType.FGNET:
-            return [
-                Input(shape=(None,) + self.data_set_img_size),
-                BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")),
-                BagWise(Conv2D(32, (5, 5), activation="relu")),
-                BagWise(MaxPooling2D(pool_size=(3, 3))),
-                Dropout(0.25),
-                BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")),
-                BagWise(Conv2D(64, (3, 3), activation="relu")),
-                BagWise(MaxPooling2D(pool_size=(3, 3))),
-                Dropout(0.25),
-                BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")),
-                BagWise(Conv2D(64, (3, 3), activation="relu")),
-                BagWise(MaxPooling2D(pool_size=(3, 3))),
-                Dropout(0.25),
-                BagWise(Flatten()),
-                BagWise(Dense(256, activation="relu")),
-                Dropout(0.5),
-            ]
+    def input_layer(self) -> tf.keras.layers.Layer:
+        return Input(shape=(None,) + self.data_set_img_size)
 
-    @property
-    def last_layers(self) -> Tuple:
+    def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
+        if self.data_set_type == DataSetType.FGNET:
+
+            # Small-ish Residual Network from Vargas, Gutierrez, Hervas-Matrinez (2020) Neurocomputing
+            x = BagWise(
+                Conv2D(32, (7, 7), strides=2, padding="same", activation="relu")
+            )(layer)
+            x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+
+            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+
+            x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+            return x
+
+    def last_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
         if self.mil_type is MILType.MI_NET:
-            return [
-                self.ordinal_layer,
-                MILPool(pooling_mode=self.pooling_mode)(),
-            ]
+            x = self.ordinal_layer(layer)
+            x = MILPool(pooling_mode=self.pooling_mode)()(x)
+            return x
 
         if self.mil_type is MILType.CAP_MI_NET:
-            return [
-                MILPool(pooling_mode=self.pooling_mode)(),
-                self.ordinal_layer,
-            ]
+            x = MILPool(pooling_mode=self.pooling_mode)()(layer)
+            x = self.ordinal_layer(x)
+            return x
 
     @property
-    def ordinal_layer(self):
+    def ordinal_layer(self) -> tf.keras.layers.Layer:
         if self.ordinal_type is OrdinalType.CORAL:
             return coral.CoralOrdinal(self.n_classes)
         if self.ordinal_type is OrdinalType.CORN:
             return coral.CornOrdinal(self.n_classes)
 
     @property
-    def ordinal_loss(self):
+    def ordinal_loss(self) -> tf.keras.layers.Layer:
         if self.ordinal_type is OrdinalType.CORAL:
             return coral.OrdinalCrossEntropy(num_classes=self.n_classes)
         if self.ordinal_type is OrdinalType.CORN:
             return coral.CornOrdinalCrossEntropy()
 
     @property
-    def ordinal_metrics(self):
+    def ordinal_metrics(self) -> tf.keras.layers.Layer:
         if self.ordinal_type is OrdinalType.CORAL:
             return coral.MeanAbsoluteErrorLabels()
         if self.ordinal_type is OrdinalType.CORN:

@@ -24,7 +24,7 @@ experiment_1 = expand_grid(
         "data_set_name": ["fgnet_bag_wr"],
         "batch_size": [1],
         "learning_rate": [0.05],
-        "epochs": [3],
+        "epochs": [2],
     }
 )
 

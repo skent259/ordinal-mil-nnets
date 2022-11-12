@@ -226,16 +226,21 @@ def residual_block(
 
 
 def bagwise_residual_block(
-    layer, n_out_channels, kernel_size=(3, 3), stride=(1, 1), nonlinearity="relu",
+    in_layer, n_out_channels, kernel_size=(3, 3), stride=(1, 1), nonlinearity="relu",
 ):
     """
     Similar to residual_block, but all layers are wrapped in `tf.keras.layers.TimeDistributed` to create 
     a bag-wise approach. 
+
+    Followed some ideas from here to get custom name: https://keras.io/guides/functional_api/#all-models-are-callable-just-like-layers
     """
     if type(stride) == int:
         stride = (stride, stride)
     BagWise = tf.keras.layers.TimeDistributed
 
+    input = Input(shape=in_layer.shape[1:])
+    # conv = input
+    layer = input
     conv = layer
     if max(stride) > 1:
         # padding: https://stackoverflow.com/a/47213171
@@ -299,7 +304,9 @@ def bagwise_residual_block(
         )
     )(conv)
     sum_ = Add()([conv, layer])
-    return BagWise(Activation(nonlinearity))(sum_)
+    output = BagWise(Activation(nonlinearity))(sum_)
+    _name = tf.compat.v1.get_default_graph().unique_name("bagwise_residual_block")
+    return Model(input, output, name=_name)(in_layer)
 
 
 # # layer, n_out_channels, stride=1, nonlinearity="relu"
