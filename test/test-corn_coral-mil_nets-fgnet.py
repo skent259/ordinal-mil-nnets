@@ -8,22 +8,20 @@ import pandas as pd
 import scipy
 import tensorflow as tf
 from tensorflow.keras.layers import (
-    Activation,
     Conv2D,
     Dense,
     Dropout,
     Flatten,
+    GlobalAveragePooling2D,
     Input,
     MaxPooling2D,
 )
 from tensorflow.keras.models import Sequential
 
+from models.clm_qwk.resnet import bagwise_residual_block
 from models.dataset import DataSet, DataSetType, MILImageDataGenerator
 
 ds = DataSet(DataSetType.FGNET, name="fgnet_bag_wr")
-# ds = DataSet(name="fgnet_bag_wr", dir="datasets/fgnet/", img_size=(128, 128))
-
-train_df = ds.read_data("train")
 
 train_df = pd.read_csv(ds.params["dir"] + ds.train, dtype=str, index_col=0)
 train_df = train_df.applymap(ast.literal_eval)
@@ -120,33 +118,67 @@ def MILPool(pooling_mode: str = "max"):
 #     optimizers.RMSprop(lr=0.0001), loss="categorical_crossentropy", metrics=["accuracy"]
 # )
 
-# Model 2: MI-net with softmax output (categorical)
-model = Sequential()
-model.add(Input(shape=(None,) + ds.params["img_size"]))
-model.add(BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")))
-model.add(BagWise(Conv2D(32, (5, 5), activation="relu")))
-model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
-model.add(Dropout(0.25))
+# # Model 2: MI-net with softmax output (categorical)
+# model = Sequential()
+# model.add(Input(shape=(None,) + ds.params["img_size"]))
+# model.add(BagWise(Conv2D(32, (5, 5), padding="same", activation="relu")))
+# model.add(BagWise(Conv2D(32, (5, 5), activation="relu")))
+# model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+# model.add(Dropout(0.25))
 
-model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
-model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
-model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
-model.add(Dropout(0.25))
+# model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
+# model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
+# model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+# model.add(Dropout(0.25))
 
-model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
-model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
-model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
-model.add(Dropout(0.25))
+# model.add(BagWise(Conv2D(64, (3, 3), padding="same", activation="relu")))
+# model.add(BagWise(Conv2D(64, (3, 3), activation="relu")))
+# model.add(BagWise(MaxPooling2D(pool_size=(3, 3))))
+# model.add(Dropout(0.25))
 
-model.add(BagWise(Flatten()))
-model.add(BagWise(Dense(256, activation="relu")))
-model.add(Dropout(0.5))
+# model.add(BagWise(Flatten()))
+# model.add(BagWise(Dense(256, activation="relu")))
+# model.add(Dropout(0.5))
 
-model.add(MILPool(pooling_mode="max")())
-# model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
-# model.add(coral.CoralOrdinal(n_classes))
-model.add(coral.CornOrdinal(n_classes))
+# model.add(MILPool(pooling_mode="max")())
+# # model.add(Dense(6, activation="softmax"))  # 6 for number of ordinal labels
+# # model.add(coral.CoralOrdinal(n_classes))
+# model.add(coral.CornOrdinal(n_classes))
 
+# model.compile(
+#     optimizer=tf.keras.optimizers.Adam(lr=0.05),
+#     # loss=coral.OrdinalCrossEntropy(num_classes=n_classes),
+#     loss=coral.CornOrdinalCrossEntropy(),
+#     metrics=[coral.MeanAbsoluteErrorLabels()],
+# )
+
+# # Model 3: MI-net with softmax output (categorical), resnet blocks
+inputs = Input(shape=(None,) + ds.params["img_size"])
+x = BagWise(Conv2D(32, (7, 7), strides=2, padding="same", activation="relu"))(inputs)
+x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+
+x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+
+x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
+x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+
+x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
+x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+
+x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
+x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+
+x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+
+outputs = MILPool(pooling_mode="max")()(x)
+# outputs = coral.CoralOrdinal(n_classes)(outputs)
+outputs = coral.CornOrdinal(n_classes)(outputs)
+
+model = tf.keras.Model(inputs=inputs, outputs=outputs, name="MI-net_corn_resnet")
 model.compile(
     optimizer=tf.keras.optimizers.Adam(lr=0.05),
     # loss=coral.OrdinalCrossEntropy(num_classes=n_classes),
@@ -198,4 +230,4 @@ predictions = [labels[k] for k in predicted_class_indices]
 
 results = test_df.copy()
 results["predictions"] = predictions
-results.to_csv(ds.dir + "results_corn_coral-mil_nets.csv", index=False)
+results.to_csv(ds.params["dir"] + "results_corn_coral-mil_nets.csv", index=False)
