@@ -55,7 +55,7 @@ class ModelArchitecture:
         model.compile(
             optimizer=tf.keras.optimizers.Adam(lr=0.05),
             loss=self.ordinal_loss,
-            metrics=[self.ordinal_metrics],
+            metrics=self.ordinal_metrics,
         )
 
         return model
@@ -103,26 +103,27 @@ class ModelArchitecture:
 
     @property
     def ordinal_layer(self) -> tf.keras.layers.Layer:
-        if self.ordinal_type is OrdinalType.CORAL:
-            return coral.CoralOrdinal(self.n_classes)
-        if self.ordinal_type is OrdinalType.CORN:
-            return coral.CornOrdinal(self.n_classes)
+        layer = {
+            OrdinalType.CORAL: coral.CoralOrdinal(self.n_classes),
+            OrdinalType.CORN: coral.CornOrdinal(self.n_classes),
+        }
+        return layer[self.ordinal_type]
 
     @property
     def ordinal_loss(self) -> tf.keras.layers.Layer:
-        if self.ordinal_type is OrdinalType.CORAL:
-            return coral.OrdinalCrossEntropy(num_classes=self.n_classes)
-        if self.ordinal_type is OrdinalType.CORN:
-            return coral.CornOrdinalCrossEntropy()
+        loss = {
+            OrdinalType.CORAL: coral.OrdinalCrossEntropy(num_classes=self.n_classes),
+            OrdinalType.CORN: coral.CornOrdinalCrossEntropy(),
+        }
+        return loss[self.ordinal_type]
 
     @property
     def ordinal_metrics(self) -> tf.keras.layers.Layer:
-        if self.ordinal_type is OrdinalType.CORAL:
-            return coral.MeanAbsoluteErrorLabels()
-        if self.ordinal_type is OrdinalType.CORN:
-            return coral.MeanAbsoluteErrorLabels(corn_logits=True)
-        # TODO: need more metrics here...
+        # NOTE: will compute RMSE, Accuracy based on saved predictions later, because
+        # coral/corn output returns 5 outputs, not 1
+        mae_metric = {
+            OrdinalType.CORAL: coral.MeanAbsoluteErrorLabels(),
+            OrdinalType.CORN: coral.MeanAbsoluteErrorLabels(corn_logits=True),
+        }
+        return [mae_metric[self.ordinal_type]]
 
-    @property
-    def mil_architecture(self) -> Tuple:
-        return None

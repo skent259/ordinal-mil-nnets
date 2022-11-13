@@ -31,6 +31,8 @@ class ExperimentConfig:
         The learning rate of the model.
     epochs : int
         The number of epochs to train the model with.
+    pooling_mode : str
+        The type of pooling to use for MIL, One of 'max', 'mean' which are passed to models.mil_nets.layer.MILPool
     """
 
     ordinal_method: OrdinalType
@@ -40,6 +42,7 @@ class ExperimentConfig:
     batch_size: int
     learning_rate: float
     epochs: int
+    pooling_mode: str = "max"
 
     @property
     def data_set(self) -> DataSet:
@@ -53,7 +56,15 @@ class ExperimentConfig:
             data_set_type=self.data_set.data_set_type,
             data_set_img_size=self.data_set.params["img_size"],
             n_classes=self.data_set.params["n_classes"],
-            pooling_mode="max",
+            pooling_mode=self.pooling_mode,
+        )
+
+    @property
+    def result_file(self) -> str:
+        return (
+            f"{self.data_set_type.value}/"
+            + f"ds={self.data_set_name}_or={self.ordinal_method.value}_mil={self.mil_method.value}"
+            + f"_pool={self.pooling_mode}_lr={self.learning_rate}_epochs={str(self.epochs)}.csv"
         )
 
 
@@ -119,7 +130,7 @@ class ExperimentRunner(object):
             shuffle=True,
             class_mode=ds.params["class_mode"],
             target_size=ds.params["img_size"],
-            **ds.params["augmentation_args"]
+            **ds.params["augmentation_args"],
         )
 
     def train(
@@ -130,7 +141,6 @@ class ExperimentRunner(object):
 
         STEP_SIZE_TRAIN = train_generator.n // train_generator.batch_size
         STEP_SIZE_VALID = valid_generator.n // valid_generator.batch_size
-        # STEP_SIZE_TEST = test_generator.n // test_generator.batch_size
         self.model.fit(
             x=train_generator,
             steps_per_epoch=STEP_SIZE_TRAIN,
@@ -176,6 +186,7 @@ if __name__ == "__main__":
         batch_size=1,
         learning_rate=0.05,
         epochs=1,
+        pooling_mode="max",
     )
 
     print(exp_config.model_architecture.build().summary())
