@@ -130,6 +130,7 @@ dmypy.json
 
 # images
 *.jpg
+*.JPG
 *.png
 results*.csv
 datasets/cifar-10
@@ -139,3 +140,9 @@ datasets/cifar-10
 
 # other 
 launch.json
+*.tar.gz
+
+# condor files
+*.err
+*.log
+*.out

@@ -1,0 +1,28 @@
+# Condor submission file for Python
+
+# EXECUTION FILE
+universe    =   vanilla
+batch_name  =   fgnet-1.0.0
+initialdir  =   /home/spkent/ordinal-mil-nnets
+
+executable  =   condor/fgnet-1.0.0.sh
+arguments   =   $(Step)
+
+# FILE TRANSFER
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = to-transfer-fgnet.tar.gz, test/test_experiments.py
+
+# RESOURCES
+request_cpus = 1
+request_memory = 8GB
+request_disk = 8GB
+requirements = (Target.HasCHTCStaging == true)
+# requirements = (HasChtcSoftware == true)
+
+# OUTPUT AND LOGGING
+output		=	condor/fgnet-1.0.0/out/fgnet-1.0.0_i=$(Step).out
+error       =   condor/fgnet-1.0.0/err/fgnet-1.0.0_i=$(Step).err
+log         =   condor/fgnet-1.0.0/log/fgnet-1.0.0_i=$(Step).log
+
+queue 1
