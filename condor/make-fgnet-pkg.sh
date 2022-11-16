@@ -3,4 +3,4 @@
 
 name="fgnet"
 # chmod +x sim/size-wq-5.0.0-1.R
-tar -czvf to-transfer-$name.tar.gz datasets/$name/ models/ results/$name/
+tar -czvf to-transfer-$name.tar.gz datasets/$name/ models/

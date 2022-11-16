@@ -18,7 +18,7 @@ dependencies:
     - image==1.5.33
     - keras-preprocessing==1.1.2
     - numpy==1.19.5
-    - pillow==9.2.0
+    - pillow>=9.2.0
     - tensorboard==2.8.0
     - tensorflow==2.4.1
     - tensorflow-estimator==2.4.0
