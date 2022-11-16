@@ -71,17 +71,6 @@ class ExperimentConfig:
             + f"_pool={self.pooling_mode}_lr={self.learning_rate}_epochs={str(self.epochs)}.csv"
         )
 
-    @property
-    def callbacks(self) -> List[tf.keras.callbacks.Callback]:
-        return [
-            CSVLogger(filename=self.result_file.replace(".csv", "_training.log")),
-            EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True),
-            ModelCheckpoint(
-                filepath=self.result_file.replace(".csv", "_model-{epoch:02d}.hdf5"),
-                save_best_only=True,
-            ),
-        ]
-
 
 class ExperimentRunner(object):
     """
@@ -93,6 +82,19 @@ class ExperimentRunner(object):
         self.data_set = config.data_set
         self.model_architecture = config.model_architecture
         self.output_dir = output_dir
+
+    @property
+    def callbacks(self) -> List[tf.keras.callbacks.Callback]:
+        fname = self.output_dir + self.config.result_file
+
+        return [
+            CSVLogger(filename=fname.replace(".csv", "_training.log")),
+            EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True),
+            ModelCheckpoint(
+                filepath=fname.replace(".csv", "_model-{epoch:02d}.hdf5"),
+                save_best_only=True,
+            ),
+        ]
 
     def run(self):
         print("Running experiment...")
@@ -169,7 +171,7 @@ class ExperimentRunner(object):
             validation_data=valid_generator,
             validation_steps=STEP_SIZE_VALID,
             epochs=self.config.epochs,
-            callbacks=self.config.callbacks,
+            callbacks=self.callbacks,
         )
 
     def predict(self, test_generator: MILImageDataGenerator) -> pd.DataFrame:
