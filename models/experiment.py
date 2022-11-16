@@ -1,10 +1,15 @@
 import ast
+import sys
 from dataclasses import dataclass
-from typing import Tuple
+from typing import List
+
+[sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
 import coral_ordinal as coral
 import pandas as pd
 import scipy
+import tensorflow as tf
+from tensorflow.keras.callbacks import CSVLogger, EarlyStopping, ModelCheckpoint
 
 from models.architecture import MILType, ModelArchitecture, OrdinalType
 from models.dataset import DataSet, DataSetType, MILImageDataGenerator
@@ -62,10 +67,20 @@ class ExperimentConfig:
     @property
     def result_file(self) -> str:
         return (
-            f"{self.data_set_type.value}/"
-            + f"ds={self.data_set_name}_or={self.ordinal_method.value}_mil={self.mil_method.value}"
+            f"ds={self.data_set_name}__or={self.ordinal_method.value}_mil={self.mil_method.value}"
             + f"_pool={self.pooling_mode}_lr={self.learning_rate}_epochs={str(self.epochs)}.csv"
         )
+
+    @property
+    def callbacks(self) -> List[tf.keras.callbacks.Callback]:
+        return [
+            CSVLogger(filename=self.result_file.replace(".csv", "_training.log")),
+            EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True),
+            ModelCheckpoint(
+                filepath=self.result_file.replace(".csv", "_model-{epoch:02d}.hdf5"),
+                save_best_only=True,
+            ),
+        ]
 
 
 class ExperimentRunner(object):
@@ -73,10 +88,11 @@ class ExperimentRunner(object):
     Runs the experiment
     """
 
-    def __init__(self, config: ExperimentConfig):
+    def __init__(self, config: ExperimentConfig, output_dir: str = ""):
         self.config = config
         self.data_set = config.data_set
         self.model_architecture = config.model_architecture
+        self.output_dir = output_dir
 
     def run(self):
         print("Running experiment...")
@@ -92,21 +108,27 @@ class ExperimentRunner(object):
 
         self.model = self.model_architecture.build()
 
-        self.train(train_generator, valid_generator)
+        history = self.train(train_generator, valid_generator)
 
         results = self.predict(test_generator)
+        results.to_csv(self.output_dir + self.config.result_file, index=False)
+
+        # save results on training set as back-up
+        results_train = self.predict(train_generator)
+        results_train.to_csv(
+            self.output_dir + self.config.result_file.replace(".csv", "_train.csv"),
+            index=False,
+        )
 
         print(results)
-
         # n_classes = len(train_generator.class_indices)
 
         # TODO: want checkpointing if possible
         # TODO: consider that some data sets might not have validation data...
-        # SOLUTION: can add a `train()` method `
         return None
 
     def read_data(self, type: str):
-        ds = self.config.data_set
+        ds = self.data_set
 
         fname = {
             "train": ds.params["dir"] + ds.train,
@@ -118,8 +140,8 @@ class ExperimentRunner(object):
         df = df.applymap(ast.literal_eval)
         return df
 
-    def make_data_generator(self, dataframe):
-        ds = self.config.data_set
+    def make_data_generator(self, dataframe: pd.DataFrame):
+        ds = self.data_set
 
         return MILImageDataGenerator(
             dataframe=dataframe,
@@ -137,20 +159,23 @@ class ExperimentRunner(object):
         self,
         train_generator: MILImageDataGenerator,
         valid_generator: MILImageDataGenerator,
-    ) -> None:
+    ) -> tf.keras.callbacks.History:
 
         STEP_SIZE_TRAIN = train_generator.n // train_generator.batch_size
         STEP_SIZE_VALID = valid_generator.n // valid_generator.batch_size
-        self.model.fit(
+        return self.model.fit(
             x=train_generator,
             steps_per_epoch=STEP_SIZE_TRAIN,
             validation_data=valid_generator,
             validation_steps=STEP_SIZE_VALID,
             epochs=self.config.epochs,
+            callbacks=self.config.callbacks,
         )
 
     def predict(self, test_generator: MILImageDataGenerator) -> pd.DataFrame:
-        ds = self.config.data_set
+        """
+        Handle any post-model prediction tasks to get label output
+        """
 
         if self.config.ordinal_method is OrdinalType.CORAL:
             ordinal_logits = self.model.predict(test_generator, verbose=1)
@@ -178,13 +203,14 @@ class ExperimentRunner(object):
 
 
 if __name__ == "__main__":
+
     exp_config = ExperimentConfig(
         ordinal_method=OrdinalType.CORAL,
         mil_method=MILType.CAP_MI_NET,
         data_set_type=DataSetType.FGNET,
-        data_set_name="fgnet_bag_wr",
+        data_set_name="fgnet_bag_wr=0.5_size=4_i=0",
         batch_size=1,
-        learning_rate=0.05,
+        learning_rate=0.01,
         epochs=1,
         pooling_mode="max",
     )

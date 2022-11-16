@@ -53,7 +53,7 @@ class ModelArchitecture:
 
         model = Model(inputs=inputs, outputs=last)
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(lr=0.05),
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
             loss=self.ordinal_loss,
             metrics=self.ordinal_metrics,
         )
