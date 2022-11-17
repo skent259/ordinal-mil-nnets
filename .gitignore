@@ -141,8 +141,10 @@ datasets/cifar-10
 # other 
 launch.json
 *.tar.gz
+results/
 
 # condor files
 *.err
 *.log
 *.out
+log-*

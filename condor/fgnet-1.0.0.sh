@@ -22,7 +22,7 @@ python3 fgnet-1.0.0.py --i $1 --output_dir $OUTPUT_DIR
 
 # zip up output
 tar -czf $NAME-1.0.0_$1.tar.gz results/
-mv $NAME-1.0.0_$i.tar.gz /staging/spkent/ordinal-mil-nnets/
+mv $NAME-1.0.0_$1.tar.gz /staging/spkent/ordinal-mil-nnets/
 
 find $OUTPUT_DIR -name "*.hdf5" -exec rm {} \;
 tar -czf $NAME-1.0.0_sm_$1.tar.gz results/ 
