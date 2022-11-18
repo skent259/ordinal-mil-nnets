@@ -5,13 +5,14 @@ universe    =   vanilla
 batch_name  =   fgnet-1.0.0
 initialdir  =   /home/spkent/ordinal-mil-nnets
 
-executable  =   condor/fgnet-1.0.0.sh
-arguments   =   $(Step)
+executable  =   condor/condor_main.sh
+arguments   =   "fgnet" "experiment-fgnet-1.0.0.csv" $(Step) "results/fgnet/"
+# usage: condor_main.sh NAME EXP_FILE I OUTPUT_DIR
 
 # FILE TRANSFER
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
-transfer_input_files = to-transfer-fgnet.tar.gz, experiment/fgnet-1.0.0.py
+transfer_input_files = to-transfer-fgnet.tar.gz, condor/condor_main.py, experiment/params/experiment-fgnet-1.0.0.csv
 
 # RESOURCES
 request_cpus = 1

@@ -1,7 +1,10 @@
 #!/bin/bash
 
-NAME="fgnet"
+NAME=$1
+EXP_FILE=$2
+I=$3
 OUTPUT_DIR="results/$NAME/"
+
 ENVNAME=ordinal-mil-nnets
 ENVDIR=$ENVNAME
 
@@ -18,7 +21,8 @@ mkdir results
 mkdir results/$NAME
 
 # run script
-python3 fgnet-1.0.0.py --i $1 --output_dir $OUTPUT_DIR
+# python3 fgnet-1.0.0.py --i $1 --output_dir $OUTPUT_DIR
+python3 condor_main.py -e $EXP_FILE --i $I --output_dir $OUTPUT_DIR
 
 # zip up output
 tar -czf $NAME-1.0.0_$1.tar.gz results/

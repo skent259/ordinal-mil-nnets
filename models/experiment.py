@@ -1,7 +1,7 @@
 import ast
 import sys
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
@@ -38,6 +38,8 @@ class ExperimentConfig:
         The number of epochs to train the model with.
     pooling_mode : str
         The type of pooling to use for MIL, One of 'max', 'mean' which are passed to models.mil_nets.layer.MILPool
+    early_stopping : bool
+        Whether to use an EarlyStopping callback or not
     """
 
     ordinal_method: OrdinalType
@@ -48,6 +50,7 @@ class ExperimentConfig:
     learning_rate: float
     epochs: int
     pooling_mode: str = "max"
+    early_stopping: bool = True
 
     @property
     def data_set(self) -> DataSet:
@@ -65,11 +68,18 @@ class ExperimentConfig:
         )
 
     @property
-    def result_file(self) -> str:
-        return (
+    def file(self) -> Dict[str, str]:
+        base_name = (
             f"ds={self.data_set_name}__or={self.ordinal_method.value}_mil={self.mil_method.value}"
-            + f"_pool={self.pooling_mode}_lr={self.learning_rate}_epochs={str(self.epochs)}.csv"
+            + f"_pool={self.pooling_mode}_lr={self.learning_rate}_epochs={str(self.epochs)}"
         )
+
+        return {
+            "test_result": base_name + ".csv",
+            "train_result": base_name + "_train.csv",
+            "csv_log": base_name + "_training.log",
+            "model": base_name + "_model-{epoch:02d}.hdf5",
+        }
 
 
 class ExperimentRunner(object):
@@ -79,22 +89,26 @@ class ExperimentRunner(object):
 
     def __init__(self, config: ExperimentConfig, output_dir: str = ""):
         self.config = config
-        self.data_set = config.data_set
-        self.model_architecture = config.model_architecture
         self.output_dir = output_dir
+        self.data_set: DataSet = config.data_set
+        self.model_architecture: ModelArchitecture = config.model_architecture
+        self.file: Dict[str, str] = {
+            x: output_dir + y for (x, y) in config.file.items()
+        }
 
     @property
     def callbacks(self) -> List[tf.keras.callbacks.Callback]:
-        fname = self.output_dir + self.config.result_file
 
-        return [
-            CSVLogger(filename=fname.replace(".csv", "_training.log")),
-            EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True),
-            ModelCheckpoint(
-                filepath=fname.replace(".csv", "_model-{epoch:02d}.hdf5"),
-                save_best_only=True,
-            ),
+        callbacks = [
+            CSVLogger(filename=self.file["csv_log"]),
+            ModelCheckpoint(filepath=self.file["model"], save_best_only=True),
         ]
+
+        if self.config.early_stopping:
+            es = EarlyStopping("val_loss", patience=10, restore_best_weights=True)
+            callbacks += [es]
+
+        return callbacks
 
     def run(self):
         print("Running experiment...")
@@ -113,14 +127,11 @@ class ExperimentRunner(object):
         history = self.train(train_generator, valid_generator)
 
         results = self.predict(test_generator)
-        results.to_csv(self.output_dir + self.config.result_file, index=False)
+        results.to_csv(self.file["test_result"], index=False)
 
         # save results on training set as back-up
         results_train = self.predict(train_generator)
-        results_train.to_csv(
-            self.output_dir + self.config.result_file.replace(".csv", "_train.csv"),
-            index=False,
-        )
+        results_train.to_csv(self.file["train_result"], index=False)
 
         print(results)
         # n_classes = len(train_generator.class_indices)
