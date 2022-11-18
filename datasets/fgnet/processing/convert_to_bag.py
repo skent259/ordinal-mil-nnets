@@ -49,34 +49,36 @@ def convert_one(path_in, path_out, bag_size, wr, seed, balance: bool = False):
     return None
 
 
-N_DATASETS = 5
+N_DATASETS_SPLIT = 5
+N_DATASETS_BAG = 5
 
-for i in range(N_DATASETS):
-    WITNESS_RATE = 0.5
-    BAG_SIZE = 4
+for i in range(N_DATASETS_SPLIT):
+    for j in range(N_DATASETS_BAG):
+        WITNESS_RATE = 0.5
+        BAG_SIZE = 4
 
-    convert_one(
-        "fgnet_train.csv",
-        f"fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_i={i}_train.csv",
-        bag_size=BAG_SIZE,
-        wr=WITNESS_RATE,
-        seed=8 + i,
-        balance=True,
-    )
-    convert_one(
-        "fgnet_valid.csv",
-        f"fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_i={i}_valid.csv",
-        bag_size=BAG_SIZE,
-        wr=WITNESS_RATE,
-        seed=8 + i,
-    )
-    convert_one(
-        "fgnet_test.csv",
-        f"fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_i={i}_test.csv",
-        bag_size=BAG_SIZE,
-        wr=WITNESS_RATE,
-        seed=8 + i,
-    )
+        convert_one(
+            f"splits/fgnet_train_{i=}.csv",
+            f"splits_bag/fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_{i=}_{j=}_train.csv",
+            bag_size=BAG_SIZE,
+            wr=WITNESS_RATE,
+            seed=8 + (N_DATASETS_BAG * i) + j,
+            balance=True,
+        )
+        convert_one(
+            f"splits/fgnet_valid_{i=}.csv",
+            f"splits_bag/fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_{i=}_{j=}_valid.csv",
+            bag_size=BAG_SIZE,
+            wr=WITNESS_RATE,
+            seed=8 + (N_DATASETS_BAG * i) + j,
+        )
+        convert_one(
+            f"splits/fgnet_test_{i=}.csv",
+            f"splits_bag/fgnet_bag_wr={WITNESS_RATE}_size={BAG_SIZE}_{i=}_{j=}_test.csv",
+            bag_size=BAG_SIZE,
+            wr=WITNESS_RATE,
+            seed=8 + (N_DATASETS_BAG * i) + j,
+        )
 
 os.chdir(proj_dir)
 

@@ -33,17 +33,32 @@ df = pd.DataFrame(
     {"img_name": img_files, "subject": subject, "age": age, "age_group": age_group}
 )
 
-# split data into train, test, and validation sets
-train, validate, test = np.split(
-    df.sample(frac=1, random_state=42), [int(0.8 * len(df)), int(0.85 * len(df))]
-)
-print(len(train))
-print(len(validate))
-print(len(test))
+# # split data into train, test, and validation sets
+# train, validate, test = np.split(
+#     df.sample(frac=1, random_state=42), [int(0.8 * len(df)), int(0.85 * len(df))]
+# )
+# print(len(train))
+# print(len(validate))
+# print(len(test))
 
-train.to_csv("fgnet_train.csv")
-validate.to_csv("fgnet_valid.csv")
-test.to_csv("fgnet_test.csv")
+# train.to_csv("splits/fgnet_train.csv")
+# validate.to_csv("splits/fgnet_valid.csv")
+# test.to_csv("splits/fgnet_test.csv")
+
+# 5 random data splits into 80% train, 15% test, and 5% validation sets
+for i in range(5):
+
+    df_i = df.copy().sample(frac=1, random_state=42 + i)
+
+    train, validate, test = np.split(df_i, [int(0.8 * len(df)), int(0.85 * len(df))])
+    print(len(train))
+    print(len(validate))
+    print(len(test))
+
+    train.to_csv(f"splits/fgnet_train_{i=}.csv")
+    validate.to_csv(f"splits/fgnet_valid_{i=}.csv")
+    test.to_csv(f"splits/fgnet_test_{i=}.csv")
+
 
 os.chdir(proj_dir)
 
