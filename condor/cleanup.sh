@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sim="fgnet-1.0.0"
+sim="fgnet-1.0.1"
 cd $sim 
 
 # Record the total run time and any errors 

@@ -6,7 +6,7 @@ batch_name  =   fgnet-1.0.0
 initialdir  =   /home/spkent/ordinal-mil-nnets
 
 executable  =   condor/condor_main.sh
-arguments   =   "fgnet" "experiment-fgnet-1.0.0.csv" $(Step) "results/fgnet/"
+arguments   =   fgnet experiment-fgnet-1.0.0.csv $(Step) results/fgnet/
 # usage: condor_main.sh NAME EXP_FILE I OUTPUT_DIR
 
 # FILE TRANSFER
