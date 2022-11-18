@@ -87,7 +87,7 @@ experiment_101 = expand_grid(
         ],
         "batch_size": [1],
         "learning_rate": [0.01, 0.001, 0.0001],
-        "epochs": [150],
+        "epochs": [100],
         "pooling_mode": ["max", "mean"],
         "early_stopping": [False],
     }
