@@ -148,3 +148,4 @@ results/
 *.log
 *.out
 log-*
+.Rproj.user
