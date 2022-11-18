@@ -14,6 +14,7 @@ class DataSetType(Enum):
 DATASET_PARAM = {
     DataSetType.FGNET: {
         "dir": "datasets/fgnet/",
+        "splits_dir": "splits_bag/",
         "x_col": "img_name",
         "y_col": "age_group",
         "img_size": (128, 128, 3),
@@ -65,15 +66,15 @@ class DataSet:
 
     @property
     def train(self) -> str:
-        return self.name + "_train.csv"
+        return self.params["splits_dir"] + self.name + "_train.csv"
 
     @property
     def test(self) -> str:
-        return self.name + "_test.csv"
+        return self.params["splits_dir"] + self.name + "_test.csv"
 
     @property
     def valid(self) -> str:
-        return self.name + "_valid.csv"
+        return self.params["splits_dir"] + self.name + "_valid.csv"
 
 
 class MILImageDataGenerator(tf.keras.utils.Sequence):

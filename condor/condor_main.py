@@ -21,6 +21,7 @@ exp = pd.read_csv(args.exp_file)
 exp["ordinal_method"] = [OrdinalType[x] for x in exp["ordinal_method"]]
 exp["mil_method"] = [MILType[x] for x in exp["mil_method"]]
 exp["data_set_type"] = [DataSetType[x] for x in exp["data_set_type"]]
+del exp["file"]
 
 # Run experiment
 exp_args = exp.iloc[args.i]
