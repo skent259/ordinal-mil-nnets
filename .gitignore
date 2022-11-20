@@ -149,3 +149,8 @@ results/
 *.out
 log-*
 .Rproj.user
+
+
+# Quarto files
+analysis/*_files/
+analysis/*.html

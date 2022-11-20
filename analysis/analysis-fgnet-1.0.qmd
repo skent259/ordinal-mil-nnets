@@ -1,0 +1,198 @@
+---
+title: "Analysis Fgnet"
+format: 
+  html:
+    fig-width: 8
+    fig-height: 4
+    code-fold: true
+editor: visual
+---
+
+```{r, setup}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(here)
+library(glue)
+library(ggbeeswarm)
+library(ggfortify)
+
+# Read in data
+df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
+df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
+
+```
+
+## Experiment
+
+Factors used:
+
+``` python
+{
+  "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
+  "mil_method": [MILType.CAP_MI_NET, MILType.MI_NET],
+  "data_set_type": [DataSetType.FGNET],
+  "data_set_name": [
+      "fgnet_bag_wr=0.5_size=4_i=0_j=0",
+      "fgnet_bag_wr=0.5_size=4_i=0_j=1",
+      "fgnet_bag_wr=0.5_size=4_i=0_j=2",
+      "fgnet_bag_wr=0.5_size=4_i=0_j=3",
+      "fgnet_bag_wr=0.5_size=4_i=0_j=4",
+      "fgnet_bag_wr=0.5_size=4_i=1_j=0",
+      "fgnet_bag_wr=0.5_size=4_i=1_j=1",
+      "fgnet_bag_wr=0.5_size=4_i=1_j=2",
+      "fgnet_bag_wr=0.5_size=4_i=1_j=3",
+      "fgnet_bag_wr=0.5_size=4_i=1_j=4",
+      "fgnet_bag_wr=0.5_size=4_i=2_j=0",
+      "fgnet_bag_wr=0.5_size=4_i=2_j=1",
+      "fgnet_bag_wr=0.5_size=4_i=2_j=2",
+      "fgnet_bag_wr=0.5_size=4_i=2_j=3",
+      "fgnet_bag_wr=0.5_size=4_i=2_j=4",
+      "fgnet_bag_wr=0.5_size=4_i=3_j=0",
+      "fgnet_bag_wr=0.5_size=4_i=3_j=1",
+      "fgnet_bag_wr=0.5_size=4_i=3_j=2",
+      "fgnet_bag_wr=0.5_size=4_i=3_j=3",
+      "fgnet_bag_wr=0.5_size=4_i=3_j=4",
+      "fgnet_bag_wr=0.5_size=4_i=4_j=0",
+      "fgnet_bag_wr=0.5_size=4_i=4_j=1",
+      "fgnet_bag_wr=0.5_size=4_i=4_j=2",
+      "fgnet_bag_wr=0.5_size=4_i=4_j=3",
+      "fgnet_bag_wr=0.5_size=4_i=4_j=4",
+  ],
+  "batch_size": [1],
+  "learning_rate": [0.01, 0.001, 0.0001],
+  "epochs": [100],
+  "pooling_mode": ["max", "mean"],
+  "early_stopping": [False],
+}
+```
+
+## Results
+
+### fgnet-1.0.1
+
+#### Anova modeling
+
+```{r}
+# Fit models 
+
+models <- 
+  expand_grid(
+    outcome = c("mae", "acc", "rmse"),
+    predictors = c("ordinal_method*mil_method + data_set_name + pooling_mode + learning_rate"),
+    exp = "fgnet-1.0.1"
+  ) %>% 
+  rowwise() %>% 
+  mutate(
+    formula = list(as.formula(glue("{outcome} ~ {predictors}"))),
+    fit = list(lm(formula, filter(df_metrics, experiment==exp))),
+    aov2 = list(car::Anova(fit, type = 2)),
+    aov3 = list(car::Anova(fit, type = 3))
+  )
+```
+
+From this experiment, the ordinal method, pooling mode, and interaction between ordinal method and MIL method show up as significant factors in the model
+
+```{r}
+#| label: out-anova-results
+walk(models$aov2, print)
+```
+
+```{r}
+plot_interaction <- function(
+    df, 
+    exps, 
+    factors = c("ordinal_method", "mil_method"), 
+    metric = "mae") {
+  
+  df %>% 
+    filter(experiment %in% exps) %>% 
+    ggplot(aes_(
+      x = as.name(factors[1]), 
+      y = as.name(metric), 
+      color = as.name(factors[2]))
+    ) + 
+    geom_quasirandom(alpha = 0.5) +
+    stat_summary(geom = "point", fun = mean, size = 5) +
+    theme_minimal()
+}
+
+```
+
+```{r}
+#| label: fig-interaction-mae-1.0.1
+#| fig-cap: Interaction plot between MIL and Ordinal method with MAE outcome
+#| warning: false
+plot_interaction(df_metrics, "fgnet-1.0.1", metric = "mae")
+```
+
+```{r}
+#| label: fig-interaction-acc-1.0.1
+#| fig-cap: Interaction plot between MIL and Ordinal method with accuracy outcome
+#| warning: false
+plot_interaction(df_metrics, "fgnet-1.0.1", metric = "acc")
+```
+
+```{r}
+#| label: fig-interaction-rmse-1.0.1
+#| fig-cap: Interaction plot between MIL and Ordinal method with RMSE outcome
+#| warning: false
+plot_interaction(df_metrics, "fgnet-1.0.1", metric = "rmse")
+```
+
+### Training and validation across epochs
+
+```{r}
+plot_training_progression <- function(df, exps, metric, group) {
+  
+  df %>% 
+    filter(experiment %in% exps) %>% 
+    ggplot(aes(
+      x = epoch, 
+      y = {{ metric }},
+      group = file, 
+      color = {{ group }} # paste0(ordinal_method, " ", mil_method))
+    )) + 
+    geom_line(alpha = 0.1) +
+    scale_y_log10() +
+    scale_color_brewer(name = NULL, palette = "Set2") + 
+    guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
+    theme_minimal() +
+    theme(legend.position = "bottom")
+}
+```
+
+```{r}
+plot_training_progression(df_train_prog, "fgnet-1.0.1", 
+                          loss, paste0(ordinal_method, " ", mil_method))
+```
+
+Observations: - Training loss drops down in the first 5-10 epochs, and then sometimes goes back up. This trend is especially prevalent for the CORN methods. - NOTE: CORN and CORAL training losses may be on different scales, so it is important not to compare them against each other - Need to check whether the learning rate is impacting how fast the model learns (see first few epochs of CORAL models) - Probably safe to reduce the number of epochs used based on this assessment.
+
+```{r}
+plot_training_progression(df_train_prog, "fgnet-1.0.1", 
+                          mean_absolute_error_labels, paste0(ordinal_method, " ", mil_method))
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 6
+plot_training_progression(df_train_prog, "fgnet-1.0.1", 
+                          val_loss, paste0(ordinal_method, " ", mil_method)) + 
+  facet_wrap(facets = vars(ordinal_method, mil_method))
+
+```
+
+The above plot (although it is noisy) indicates to me that the model isn't overfitting. The validation loss is mostly constant throughout the epochs.
+
+## Next actions
+
+## Appendix
+
+Linear model diagnostics are reasonable. See some deviations from normality and possible heterogeneity in the residuals. Accuracy model is the model reliable in this.
+
+```{r}
+walk(models$fit, ~print(autoplot(.x)))
+
+```
