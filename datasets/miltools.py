@@ -6,6 +6,8 @@ class MILDataSetConverter(object):
     """
     An object that can convert a data set to a MIL data set. The several options 
     are wrapped into a single object that can be used. 
+
+    TODO: investigate why so slow on the aes data set. 
     """
 
     def __init__(
