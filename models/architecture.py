@@ -90,6 +90,40 @@ class ModelArchitecture:
             x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
             return x
 
+        if self.data_set_type == DataSetType.AES:
+
+            # ResNet 34, as in Shi, Cao, and Raschka (2022)
+            # https://www.kaggle.com/datasets/pytorch/resnet34
+            x = BagWise(
+                Conv2D(64, (7, 7), strides=2, padding="same", activation="relu")
+            )(layer)
+            x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+
+            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+
+            x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
+            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+
+            x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+            x = BagWise(Dense(1000, activation="relu"))(x)
+
+            return x
+
     def last_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
         if self.mil_type is MILType.MI_NET:
             x = self.ordinal_layer(layer)

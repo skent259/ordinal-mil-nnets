@@ -9,6 +9,7 @@ import tensorflow as tf
 
 class DataSetType(Enum):
     FGNET = "fgnet"
+    AES = "aes"
 
 
 DATASET_PARAM = {
@@ -30,7 +31,26 @@ DATASET_PARAM = {
             "quality_min": 50,
             "quality_max": 100,
         },
-    }
+    },
+    DataSetType.AES: {
+        "dir": "datasets/aes/",
+        "splits_dir": "splits_bag/",
+        "x_col": "img_name",
+        "y_col": "score",
+        "img_size": (128, 128, 3),  # matches Shi, Cao, and Raschka (2022)
+        "n_classes": 5,
+        "class_mode": "sparse",
+        "augmentation_args": {
+            "horizontal_flip": False,
+            "crop_range": 0.05,
+            "contrast_lower": 0.75,
+            "contrast_upper": 1.5,
+            "brightness_delta": 0.1,
+            "hue_delta": 0.1,
+            "quality_min": 75,
+            "quality_max": 100,
+        },
+    },
 }
 
 
@@ -90,13 +110,13 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
     To perform data augmentation, change one of the following default arguments (range given after):
         * horizontal_flip: (True or False)
-        * crop_range: (0.0, 1.0)
-        * contrast_lower: (-inf, inf)
-        * contrast_upper: (-inf, inf)
-        * brightness_delta: [0, 1)
-        * hue_delta: [-1, 1]
-        * quality_min: [0, 100]
-        * quality_max: [0, 100]
+        * crop_range: (0.0, 1.0), no aug if 0
+        * contrast_lower: (-inf, inf), no aug if 1
+        * contrast_upper: (-inf, inf), no aug if 1
+        * brightness_delta: [0, 1), no aug if 0
+        * hue_delta: [-1, 1], no aug if 0
+        * quality_min: [0, 100], no aug if 100
+        * quality_max: [0, 100], no aug if 100
     """
 
     def __init__(
