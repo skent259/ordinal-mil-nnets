@@ -17,6 +17,7 @@ tar -xzf $ENVNAME.tar.gz -C $ENVDIR
 . $ENVDIR/bin/activate
 
 # Prepare folder structure
+cp /staging/spkent/ordinal-mil-nnets/to-transfer-${NAME}.tar.gz ./
 tar -xzf to-transfer-${NAME}.tar.gz
 mkdir results
 mkdir results/${NAME}
@@ -33,4 +34,4 @@ tar -czf ${NAME}-${VERSION}_sm_${I}.tar.gz results/
 
 # clean up
 rm $ENVNAME.tar.gz
-rm to-transfer-fgnet.tar.gz
+rm to-transfer-${NAME}.tar.gz

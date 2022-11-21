@@ -12,7 +12,7 @@ arguments   =   aes 2.0.1 $(Step) results/aes/
 # FILE TRANSFER
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
-transfer_input_files = to-transfer-aes.tar.gz, condor/condor_main.py, experiment/params/experiment-aes-2.0.1.csv
+transfer_input_files = condor/condor_main.py, experiment/params/experiment-aes-2.0.1.csv
 
 # RESOURCES
 request_cpus = 1
