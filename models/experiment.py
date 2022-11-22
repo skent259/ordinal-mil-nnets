@@ -192,12 +192,16 @@ class ExperimentRunner(object):
 
         if self.config.ordinal_method is OrdinalType.CORAL:
             ordinal_logits = self.model.predict(test_generator, verbose=1)
+            if self.config.mil_method is MILType.CAP_MI_NET_DS:
+                ordinal_logits = ordinal_logits[-1]  # take averaged output
             cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
             predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
             # don't add 1 because we are 0 indexing
 
         if self.config.ordinal_method is OrdinalType.CORN:
             ordinal_logits = self.model.predict(test_generator, verbose=1)
+            if self.config.mil_method is MILType.CAP_MI_NET_DS:
+                ordinal_logits = ordinal_logits[-1]  # take averaged output
             cum_probs = pd.DataFrame(coral.corn_cumprobs(ordinal_logits))
             predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
 
@@ -221,10 +225,10 @@ if __name__ == "__main__":
         ordinal_method=OrdinalType.CORAL,
         mil_method=MILType.CAP_MI_NET,
         data_set_type=DataSetType.FGNET,
-        data_set_name="fgnet_bag_wr=0.5_size=4_i=0",
+        data_set_name="fgnet_bag_wr=0.5_size=4_i=0_j=0",
         batch_size=1,
         learning_rate=0.01,
-        epochs=1,
+        epochs=2,
         pooling_mode="max",
     )
 

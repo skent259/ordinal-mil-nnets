@@ -14,6 +14,7 @@ from tensorflow.keras.layers import (
     GlobalAveragePooling2D,
     Input,
     MaxPooling2D,
+    average,
 )
 from tensorflow.keras.models import Sequential
 
@@ -51,12 +52,26 @@ class ModelArchitecture:
         base = self.base_layers(inputs)
         last = self.last_layers(base)
 
-        model = Model(inputs=inputs, outputs=last)
-        model.compile(
-            optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
-            loss=self.ordinal_loss,
-            metrics=self.ordinal_metrics,
-        )
+        if self.mil_type is not MILType.CAP_MI_NET_DS:
+            model = Model(inputs=inputs, outputs=last)
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                loss=self.ordinal_loss,
+                metrics=self.ordinal_metrics,
+            )
+        else:
+            out_names = [x.name.split("/", 1)[0] for x in last]  # hack-y way
+            out_weights = [1.0 for _ in range(len(last) - 1)] + [0.0]
+
+            model = tf.keras.Model(
+                inputs=inputs, outputs=last, name="MI-net_corn_resnet"
+            )
+            model.compile(
+                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                loss={i: self.ordinal_loss for i in out_names},
+                loss_weights={i: j for (i, j) in zip(out_names, out_weights)},
+                metrics=self.ordinal_metrics,
+            )
 
         return model
 
@@ -67,62 +82,76 @@ class ModelArchitecture:
         if self.data_set_type == DataSetType.FGNET:
 
             # Small-ish Residual Network from Vargas, Gutierrez, Hervas-Matrinez (2020) Neurocomputing
-            x = BagWise(
+            x1 = BagWise(
                 Conv2D(32, (7, 7), strides=2, padding="same", activation="relu")
             )(layer)
-            x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+            x1 = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x1)
 
-            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
+            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+            x2 = bagwise_residual_block(x1, 128, (3, 3), stride=2, nonlinearity="relu")
+            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
+            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x2, 256, (3, 3), stride=2, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+            x4 = bagwise_residual_block(x3, 512, (3, 3), stride=2, nonlinearity="relu")
+            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
+            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
 
-            x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
-            return x
+            if self.mil_type is MILType.CAP_MI_NET_DS:
+                x_out = [
+                    BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+                    for x in [x1, x2, x3, x4]
+                ]
+            else:
+                x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
+
+            return x_out
 
         if self.data_set_type == DataSetType.AES:
 
             # ResNet 34, as in Shi, Cao, and Raschka (2022)
             # https://www.kaggle.com/datasets/pytorch/resnet34
-            x = BagWise(
+            x1 = BagWise(
                 Conv2D(64, (7, 7), strides=2, padding="same", activation="relu")
             )(layer)
-            x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+            x1 = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x1)
 
-            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
+            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
+            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+            x2 = bagwise_residual_block(x1, 128, (3, 3), stride=2, nonlinearity="relu")
+            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
+            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
+            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x2, 256, (3, 3), stride=2, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
+            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
 
-            x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
-            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
-            x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+            x4 = bagwise_residual_block(x3, 512, (3, 3), stride=2, nonlinearity="relu")
+            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
+            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
 
-            x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
-            x = BagWise(Dense(1000, activation="relu"))(x)
+            if self.mil_type is MILType.CAP_MI_NET_DS:
+                x_out = [
+                    BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+                    for x in [x1, x2, x3, x4]
+                ]
+                x_out = [Dense(1000, activation="relu")(x) for x in x_out]
+            else:
+                x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
+                x_out = BagWise(Dense(1000, activation="relu"))(x_out)
 
-            return x
+            return x_out
 
     def last_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
         if self.mil_type is MILType.MI_NET:
@@ -134,6 +163,15 @@ class ModelArchitecture:
             x = MILPool(pooling_mode=self.pooling_mode)()(layer)
             x = self.ordinal_layer(x)
             return x
+
+        if self.mil_type is MILType.CAP_MI_NET_DS:
+            x_list = [MILPool(pooling_mode=self.pooling_mode)()(x) for x in layer]
+            x_list = [self.ordinal_layer(x) for i, x in enumerate(x_list)]
+
+            x_avg = average(x_list, name="out_avg")
+            x_all = x_list + [x_avg]
+
+            return x_all
 
     @property
     def ordinal_layer(self) -> tf.keras.layers.Layer:

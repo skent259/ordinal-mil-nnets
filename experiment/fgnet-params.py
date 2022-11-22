@@ -95,6 +95,50 @@ experiment_101 = expand_grid(
 
 experiment_df_to_csv(experiment_101, "experiment/params/experiment-fgnet-1.0.1.csv")
 
+# fgnet-1.0.2
+experiment_102 = expand_grid(
+    {
+        "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
+        "mil_method": [MILType.CAP_MI_NET_DS],
+        "data_set_type": [DataSetType.FGNET],
+        "data_set_name": [
+            "fgnet_bag_wr=0.5_size=4_i=0_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=4",
+        ],
+        "batch_size": [1],
+        "learning_rate": [0.01, 0.001, 0.0001],
+        "epochs": [100],
+        "pooling_mode": ["max", "mean"],
+        "early_stopping": [False],
+    }
+)
+
+experiment_df_to_csv(experiment_102, "experiment/params/experiment-fgnet-1.0.2.csv")
+
+
 # # Test read in
 # test = pd.read_csv("experiment-fgnet-1.0.0.csv")
 # test["ordinal_method"] = [OrdinalType[x] for x in test["ordinal_method"]]
