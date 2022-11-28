@@ -17,6 +17,7 @@ library(here)
 library(glue)
 library(ggbeeswarm)
 library(ggfortify)
+library(patchwork)
 
 library(lme4)
 
@@ -24,7 +25,7 @@ library(lme4)
 df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
-# exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.0.1")
+# exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.1.0")
 exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2")
 
 ```
@@ -96,6 +97,7 @@ models <-
   expand_grid(
     outcome = c("mae", "acc", "rmse"),
     predictors = c("ordinal_method*mil_method + (1 | data_set_name) + pooling_mode + learning_rate"),
+    # predictors = c("ordinal_method*mil_method + data_set_type + (1 | data_set_name) + pooling_mode + learning_rate"),
     exp_list = list(exp_list)
   ) %>% 
   rowwise() %>% 
@@ -127,35 +129,33 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
     )) +
     # geom_violin(width = 0.5, draw_quantiles = c(0.25, 0.5, 0.75)) + 
     geom_boxplot(width = 0.5) + 
-    stat_summary(geom = "point", fun = mean, size = 5) +
+    stat_summary(geom = "point", fun = mean, size = 3) +
     facet_wrap(facets, scales="free") + 
-    theme_bw()
+    theme_bw() +
+    coord_flip()
 }
 ```
 
 ```{r}
 #| label: fig-1f-boxplot-mae-ordinal
-#| fig-cap: Single factor effects of Ordinal method with MAE outcome
-plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_set_type")
+#| fig-cap: Main single factor effects with MAE outcome
+#| fig-height: 6
+plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_set_type") + 
+  plot_one_factor(df_metrics, exp_list, "mil_method", "mae", facets = "data_set_type") +
+  plot_one_factor(df_metrics, exp_list, "pooling_mode", "mae", facets = "data_set_type") +
+  plot_layout(ncol = 1)
 ```
 
 ```{r}
 #| label: fig-1f-boxplot-acc-ordinal
-#| fig-cap: Single factor effects of Ordinal method with accuracy outcome
-plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_set_type")
+#| fig-cap: Main single factor effects with accuracy outcome
+#| fig-height: 6
+plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_set_type") + 
+  plot_one_factor(df_metrics, exp_list, "mil_method", "acc", facets = "data_set_type") +
+  plot_one_factor(df_metrics, exp_list, "pooling_mode", "acc", facets = "data_set_type") +
+  plot_layout(ncol = 1)
 ```
 
-```{r}
-#| label: fig-1f-boxplot-mae-mil
-#| fig-cap: Single factor effects of MIL method with MAE outcome
-plot_one_factor(df_metrics, exp_list, "mil_method", "mae", facets = "data_set_type")
-```
-
-```{r}
-#| label: fig-1f-boxplot-acc-mil
-#| fig-cap: Single factor effects of MIL method with accuracy outcome
-plot_one_factor(df_metrics, exp_list, "mil_method", "mae", facets = "data_set_type")
-```
 
 ```{r}
 plot_two_factors <- function(
@@ -330,7 +330,7 @@ walk(models$fit, ~print(plot(.x)))
 Correlation between number of unique test predictions and outcome metrics
 
 ```{r}
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.0.1")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.0.1", "aes-2.0.2")
 df_metrics %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, mae, group = n_pred)) + 
@@ -345,14 +345,13 @@ df_metrics %>%
   facet_wrap(~data_set_type, scales = "free") +
   theme_bw()
 
-
 ```
 
 ```{r}
 
 files_of_interest <- 
   df_metrics %>% 
-  filter(experiment %in% c("aes-2.0.1")) %>% 
+  filter(experiment %in% c("aes-2.0.1", "aes-2.0.2")) %>% 
   filter(n_pred > 1) %>% 
   pull(file)
 
