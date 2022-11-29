@@ -20,6 +20,7 @@ from tensorflow.keras.models import Sequential
 
 from models.clm_qwk.resnet import bagwise_residual_block
 from models.dataset import DataSetType
+from models.mil_attention.layer import mil_attention_layer
 from models.mil_nets.layer import BagWise, MILPool
 
 
@@ -32,12 +33,17 @@ class MILType(Enum):
     MI_NET = "mi-net"
     CAP_MI_NET = "cap-mi-net"
     CAP_MI_NET_DS = "cap-mi-net-ds"
+    MI_ATTENTION = "mi-attention"
+    MI_GATED_ATTENTION = "mi-gated-attention"
 
 
 @dataclass
 class ModelArchitecture:
     """
     Model architecture to be used by experiment methods
+
+    NOTE: If MILType is MI_ATTENTION or MI_GATED_ATTENTION, pooling_mode will be ignored and the implicit structure is
+    close to that or CAP_MI_NET. 
     """
 
     ordinal_type: OrdinalType
@@ -172,6 +178,18 @@ class ModelArchitecture:
             x_all = x_list + [x_avg]
 
             return x_all
+
+        if self.mil_type is MILType.MI_ATTENTION:
+            n_att_weights = 128
+            x = mil_attention_layer(layer, n_att_weights, use_gated=False)
+            x = self.ordinal_layer(x)
+            return x
+
+        if self.mil_type is MILType.MI_GATED_ATTENTION:
+            n_att_weights = 128
+            x = mil_attention_layer(layer, n_att_weights, use_gated=True)
+            x = self.ordinal_layer(x)
+            return x
 
     @property
     def ordinal_layer(self) -> tf.keras.layers.Layer:

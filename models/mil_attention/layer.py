@@ -12,7 +12,7 @@ def mil_attention_layer(
     in_layer,
     weight_params_dim,
     kernel_initializer="glorot_uniform",
-    kernel_regularizer=None,
+    kernel_regularizer=keras.regularizers.l2(0.01),
     use_gated=False,
 ):
     """

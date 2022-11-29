@@ -19,19 +19,13 @@ def expand_grid(dictionary):
 experiment_1 = expand_grid(
     {
         "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-        "mil_method": [MILType.CAP_MI_NET, MILType.MI_NET],
+        "mil_method": [MILType.MI_ATTENTION, MILType.MI_GATED_ATTENTION],
         "data_set_type": [DataSetType.FGNET],
-        "data_set_name": [
-            "fgnet_bag_wr=0.5_size=4_i=0",
-            "fgnet_bag_wr=0.5_size=4_i=1",
-            "fgnet_bag_wr=0.5_size=4_i=2",
-            "fgnet_bag_wr=0.5_size=4_i=3",
-            "fgnet_bag_wr=0.5_size=4_i=4",
-        ],
+        "data_set_name": ["fgnet_bag_wr=0.5_size=4_i=0",],
         "batch_size": [1],
-        "learning_rate": [0.01, 0.001, 0.0001],
-        "epochs": [50],
-        "pooling_mode": ["max", "mean"],
+        "learning_rate": [0.0001],
+        "epochs": [2],
+        "pooling_mode": [None],
     }
 )
 
