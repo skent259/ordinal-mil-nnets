@@ -26,7 +26,7 @@ df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
 # exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.1.0")
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3")
 
 ```
 
@@ -72,6 +72,19 @@ Factors used:
   "pooling_mode": ["max", "mean"],
   "early_stopping": [False],
 }
+{
+  "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
+  "mil_method": [MILType.MI_ATTENTION, MILType.MI_GATED_ATTENTION],
+  "data_set_type": [DataSetType.FGNET],
+  "data_set_name": [
+      <same as above>
+  ],
+  "batch_size": [1],
+  "learning_rate": [0.01, 0.001, 0.0001],
+  "epochs": [100],
+  "pooling_mode": [None],
+  "early_stopping": [False],
+}
 ```
 
 ## Results
@@ -96,7 +109,7 @@ mod_weight <- df_metrics %>%
 models <- 
   expand_grid(
     outcome = c("mae", "acc", "rmse"),
-    predictors = c("ordinal_method*mil_method + (1 | data_set_name) + pooling_mode + learning_rate"),
+    predictors = c("ordinal_method*mil_pool_combo + (1 | data_set_name) + learning_rate"),
     # predictors = c("ordinal_method*mil_method + data_set_type + (1 | data_set_name) + pooling_mode + learning_rate"),
     exp_list = list(exp_list)
   ) %>% 
@@ -141,9 +154,8 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
 #| fig-cap: Main single factor effects with MAE outcome
 #| fig-height: 6
 plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_set_type") + 
-  plot_one_factor(df_metrics, exp_list, "mil_method", "mae", facets = "data_set_type") +
-  plot_one_factor(df_metrics, exp_list, "pooling_mode", "mae", facets = "data_set_type") +
-  plot_layout(ncol = 1)
+  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "mae", facets = "data_set_type") +
+  plot_layout(ncol = 1, heights = c(1, 2))
 ```
 
 ```{r}
@@ -151,9 +163,8 @@ plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_se
 #| fig-cap: Main single factor effects with accuracy outcome
 #| fig-height: 6
 plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_set_type") + 
-  plot_one_factor(df_metrics, exp_list, "mil_method", "acc", facets = "data_set_type") +
-  plot_one_factor(df_metrics, exp_list, "pooling_mode", "acc", facets = "data_set_type") +
-  plot_layout(ncol = 1)
+  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "mae", facets = "data_set_type") +
+  plot_layout(ncol = 1, heights = c(1, 2))
 ```
 
 
@@ -161,7 +172,7 @@ plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_se
 plot_two_factors <- function(
     df, 
     exps, 
-    factors = c("ordinal_method", "mil_method"),
+    factors = c("ordinal_method", "mil_pool_combo"),
     metric = "mae", 
     facets = NULL) {
   
@@ -175,8 +186,9 @@ plot_two_factors <- function(
     geom_boxplot() +
     stat_summary(geom = "point", 
                  position = position_dodge2(width = 0.75),
-                 fun = mean, size = 5) +
+                 fun = mean, size = 3) +
     facet_wrap(facets, scales="free") + 
+    scale_color_brewer(palette = "Dark2", na.value = "black") +
     theme_bw()
 }
 ```
@@ -184,20 +196,28 @@ plot_two_factors <- function(
 ```{r}
 #| label: fig-2f-boxplot-mae-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with MAE outcome
+#| fig-width: 12
 plot_two_factors(df_metrics, exp_list, metric = "mae", facets = "data_set_type")
 ```
 
 ```{r}
 #| label: fig-2f-boxplot-acc-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome
+#| fig-width: 12
 plot_two_factors(df_metrics, exp_list, metric = "acc", facets = "data_set_type")
 ```
+
+```{r}
+plot_two_factors(df_metrics, exp_list, factors = c("mil_method", "pooling_mode"), metric = "mae", facets = "data_set_type") + 
+  coord_flip()
+```
+
 
 ```{r}
 plot_interaction <- function(
     df, 
     exps, 
-    factors = c("ordinal_method", "mil_method"), 
+    factors = c("ordinal_method", "mil_pool_combo"), 
     metric = "mae") {
   
   df %>% 
@@ -210,6 +230,7 @@ plot_interaction <- function(
     geom_quasirandom(alpha = 0.5) +
     stat_summary(geom = "point", fun = mean, size = 5) +
     stat_summary(aes_(group = as.name(factors[2])), geom = "line", fun = mean) +
+    scale_color_brewer(palette = "Dark2", na.value = "black") +
     theme_minimal()
 }
 
@@ -262,7 +283,7 @@ plot_training_progression <- function(df, exps, metric, group, alpha = 0.1) {
 ```
 
 ```{r}
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2"), 
+plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"), 
                           loss, paste0(mil_method, " ", ordinal_method))
 ```
 
@@ -276,14 +297,14 @@ Observations:
 
 ```{r}
 #| warning: false
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2"),  
+plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"),  
                           mean_absolute_error_labels, paste0(ordinal_method, " ", mil_method))
 ```
 
 ```{r}
 #| fig-width: 8
 #| fig-height: 6
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2"),
+plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"),
                           val_loss, paste0(ordinal_method, " ", mil_method)) + 
   facet_wrap(facets = vars(ordinal_method, mil_method))
 
@@ -330,7 +351,7 @@ walk(models$fit, ~print(plot(.x)))
 Correlation between number of unique test predictions and outcome metrics
 
 ```{r}
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.0.1", "aes-2.0.2")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "aes-2.0.1", "aes-2.0.2")
 df_metrics %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, mae, group = n_pred)) + 
