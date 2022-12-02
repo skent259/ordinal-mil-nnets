@@ -110,7 +110,7 @@ class ExperimentRunner(object):
 
         return callbacks
 
-    def run(self):
+    def run(self, verbose=2):
         print("Running experiment...")
 
         train_df = self.read_data("train")
@@ -124,7 +124,7 @@ class ExperimentRunner(object):
 
         self.model = self.model_architecture.build()
 
-        history = self.train(train_generator, valid_generator)
+        history = self.train(train_generator, valid_generator, verbose=verbose)
 
         results = self.predict(test_generator)
         results.to_csv(self.file["test_result"], index=False)
@@ -172,6 +172,7 @@ class ExperimentRunner(object):
         self,
         train_generator: MILImageDataGenerator,
         valid_generator: MILImageDataGenerator,
+        **kwargs,
     ) -> tf.keras.callbacks.History:
 
         STEP_SIZE_TRAIN = train_generator.n // train_generator.batch_size
@@ -183,6 +184,7 @@ class ExperimentRunner(object):
             validation_steps=STEP_SIZE_VALID,
             epochs=self.config.epochs,
             callbacks=self.callbacks,
+            **kwargs,
         )
 
     def predict(self, test_generator: MILImageDataGenerator) -> pd.DataFrame:
@@ -226,14 +228,24 @@ if __name__ == "__main__":
         mil_method=MILType.CAP_MI_NET,
         data_set_type=DataSetType.FGNET,
         data_set_name="fgnet_bag_wr=0.5_size=4_i=0_j=0",
+        # data_set_type=DataSetType.BCNB_ALN,
+        # data_set_name="bcnb_aln_i=0",
         batch_size=1,
         learning_rate=0.01,
         epochs=2,
         pooling_mode="max",
     )
 
-    print(exp_config.model_architecture.build().summary())
+    # print(exp_config.model_architecture.build().summary())
 
     exp = ExperimentRunner(exp_config)
 
-    exp.run()
+    # train_df = exp.read_data("train")
+    # print(train_df)
+
+    # train_generator = exp.make_data_generator(train_df)
+
+    # print(train_generator.class_indices)
+    # x, y = train_generator[0]
+
+    exp.run(verbose=1)

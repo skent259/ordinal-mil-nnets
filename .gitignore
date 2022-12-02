@@ -134,6 +134,13 @@ dmypy.json
 *.png
 results*.csv
 datasets/cifar-10
+datasets/colon-cancer
+datasets/bcnb/patient-clinical-data.xlsx
+datasets/bcnb/README.txt
+datasets/bcnb/images/
+datasets/bcnb/wsi/
+datasets/bcnb/splits/
+datasets/bcnb/splits_bag/
 
 # mat data files
 *.mat

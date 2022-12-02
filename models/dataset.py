@@ -10,6 +10,7 @@ import tensorflow as tf
 class DataSetType(Enum):
     FGNET = "fgnet"
     AES = "aes"
+    BCNB_ALN = "bcnb"
 
 
 DATASET_PARAM = {
@@ -50,6 +51,16 @@ DATASET_PARAM = {
             "quality_min": 75,
             "quality_max": 100,
         },
+    },
+    DataSetType.BCNB_ALN: {
+        "dir": "datasets/bcnb/",
+        "splits_dir": "splits_bag/",
+        "x_col": "img_name",
+        "y_col": "aln_status",
+        "img_size": (256, 256, 3),
+        "n_classes": 3,
+        "class_mode": "sparse",
+        "augmentation_args": {},
     },
 }
 
@@ -170,8 +181,11 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
         return np.asarray([self.__get_image(i, target_size) for i in paths])
 
     def __get_output(self, label, class_indices):
-        int_label = [class_indices[i] for i in label]
-        int_label = np.max(int_label)  # QUESTION: why did I do this?
+        if type(label) is list:
+            int_label = [class_indices[i] for i in label]
+            int_label = np.max(int_label)
+        else:
+            int_label = class_indices[label]
 
         if self.class_mode == "sparse":
             return float(int_label)
