@@ -4,7 +4,7 @@ from typing import Tuple
 
 import coral_ordinal as coral
 import tensorflow as tf
-from tensorflow.keras import Model
+from tensorflow.keras import Model, applications
 from tensorflow.keras.layers import (
     Activation,
     Conv2D,
@@ -13,6 +13,7 @@ from tensorflow.keras.layers import (
     Flatten,
     GlobalAveragePooling2D,
     Input,
+    Lambda,
     MaxPooling2D,
     average,
 )
@@ -85,7 +86,7 @@ class ModelArchitecture:
         return Input(shape=(None,) + self.data_set_img_size)
 
     def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
-        if self.data_set_type == DataSetType.FGNET:
+        if self.data_set_type is DataSetType.FGNET:
 
             # Small-ish Residual Network from Vargas, Gutierrez, Hervas-Matrinez (2020) Neurocomputing
             x1 = BagWise(
@@ -118,7 +119,7 @@ class ModelArchitecture:
 
             return x_out
 
-        if self.data_set_type == DataSetType.AES:
+        if self.data_set_type is DataSetType.AES:
 
             # ResNet 34, as in Shi, Cao, and Raschka (2022)
             # https://www.kaggle.com/datasets/pytorch/resnet34
@@ -156,6 +157,29 @@ class ModelArchitecture:
             else:
                 x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
                 x_out = BagWise(Dense(1000, activation="relu"))(x_out)
+
+            return x_out
+
+        if self.data_set_type is DataSetType.BCNB_ALN:
+
+            # VGG16, pretrained, as in Xu, Zhu, Tang, et al. (2021)
+            # see https://www.tensorflow.org/versions/r2.4/api_docs/python/tf/keras/applications/VGG16
+            # NOTE: no adaptive average pooling to (7, 7, 512) size as in Xu, Zhu, Tang, et al. (2021)
+            # Instead, we re-scale images to (224, 224, 3) from (256, 256, 3) to achieve (7, 7, 512) output
+
+            # `preprocess_input()` expects non-scaled image
+            pre = Lambda(lambda x: x * 255.0)(layer)
+            pre = applications.vgg16.preprocess_input(pre)
+
+            x1 = BagWise(applications.VGG16(include_top=False, weights="imagenet"))(pre)
+            x1 = BagWise(GlobalAveragePooling2D())(x1)
+            x2 = BagWise(Dense(2048))(x1)
+            x3 = BagWise(Dense(1028))(x2)
+
+            if self.mil_type is MILType.CAP_MI_NET_DS:
+                x_out = [x1, x2, x3]
+            else:
+                x_out = x3
 
             return x_out
 

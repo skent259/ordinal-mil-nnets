@@ -1,31 +1,31 @@
 import os
-import sys
 
 import numpy as np
 import pandas as pd
-
-[sys.path.append(i) for i in [".", "..", "../.."]]  # need to access modules
-
-from datasets.miltools import MILDataSetConverter
 
 proj_dir = os.getcwd()
 data_dir = "datasets/bcnb"
 os.chdir(data_dir)
 
 
-def random_over_sampler(df, y_col: str):
+def random_under_sampler(df, y_col: str, limit: int = float("inf")):
+    """
+    Down-sample a data set to be split evenly by `y_col`.
+    """
+
     df = df.copy()
     classes = np.unique(df[y_col])
     class_indices = dict(zip(classes, np.arange(len(classes))))
 
     y = df[y_col].apply(lambda x: class_indices[x]).reset_index(drop=True)
 
-    top_n = max(y.value_counts())
+    low_n = min(y.value_counts())
+    low_n = min(low_n, limit)
 
     def boostrap_sample(x: pd.Series, n: int):
         return x.sample(n=n, replace=True).index
 
-    samples = [boostrap_sample(y[y == i], top_n) for i in range(len(classes))]
+    samples = [boostrap_sample(y[y == i], low_n) for i in range(len(classes))]
     samples_flat = [i for l in samples for i in l]
 
     return df.iloc[samples_flat].sample(frac=1)
@@ -33,6 +33,9 @@ def random_over_sampler(df, y_col: str):
 
 # Read in clinical data
 clin = pd.read_excel("patient-clinical-data.xlsx")
+
+aln_names = {"N0": "N0", "N+(1-2)": "N1-2", "N+(>2)": "N2+"}  # need proper ordering
+clin["ALN status 2"] = [aln_names[x] for x in clin["ALN status"]]
 
 # Read in paper splits; set up 4 additional splits
 # Append clinical information to the splits
@@ -78,8 +81,19 @@ image_info["subject"].value_counts()
 img_by_subject = image_info.groupby(["subject"]).agg(list)
 img_by_subject["Patient ID"] = img_by_subject.index.astype(int)
 
+# DECISION: Reduce down to at most 30 images in the bag...
+# This may miss some, but the original paper does averaging at the end anyways, so this
+# is probably okay
+n_bag_max = 30
+img_by_subject["img_name"] = img_by_subject["img_name"].apply(
+    lambda x: x[0 : min(len(x), n_bag_max)]
+)
+assert img_by_subject["img_name"].apply(len).max() <= 50
+
+
+# img_by_subject["img_name"].apply(len).max()
 # Append columns for image information to the splits
-cols = ["Patient ID", "ALN status", "Histological grading"]
+cols = ["Patient ID", "ALN status 2", "Histological grading"]
 train = [pd.merge(x[cols], img_by_subject, on="Patient ID") for x in train]
 validate = [pd.merge(x[cols], img_by_subject, on="Patient ID") for x in validate]
 test = [pd.merge(x[cols], img_by_subject, on="Patient ID") for x in test]
@@ -87,12 +101,12 @@ test = [pd.merge(x[cols], img_by_subject, on="Patient ID") for x in test]
 
 # Save output
 
-for key, dfs in {"train": train, "validate": validate, "test": test}.items():
+for key, dfs in {"train": train, "valid": validate, "test": test}.items():
 
     for i, x in enumerate(dfs):
         new_cols = {
             "Patient ID": "subject",
-            "ALN status": "aln_status",
+            "ALN status 2": "aln_status",
             "Histological grading": "hist_grade",
         }
         x.rename(columns=new_cols, inplace=True)
@@ -104,14 +118,24 @@ for key, dfs in {"train": train, "validate": validate, "test": test}.items():
         y = x.loc[pd.notnull(x["hist_grade"])].copy()
 
         if key == "train":
-            x_aln = random_over_sampler(x, "aln_status")
-            y_aln = random_over_sampler(y, "hist_grade")
-        else:
-            x_aln = x.copy()
-            y_aln = y.copy()
+            x_aln = random_under_sampler(x, "aln_status", limit=66)
+            y_hist = random_under_sampler(y, "hist_grade", limit=66)
+        elif key == "valid":
+            x_aln = x.sample(n=50, ignore_index=True).copy()
+            y_hist = y.sample(n=50, ignore_index=True).copy()
+        elif key == "test":
+            x_aln = x.sample(n=100, ignore_index=True).copy()
+            y_hist = y.sample(n=100, ignore_index=True).copy()
 
         x_aln.to_csv(f"splits_bag/bcnb_aln_{i=}_{key}.csv")
-        y_aln.to_csv(f"splits_bag/bcnb_hist_{i=}_{key}.csv")
+        y_hist.to_csv(f"splits_bag/bcnb_hist_{i=}_{key}.csv")
+
+        # super small data set for quick testing, can delete later
+        if i == 0:
+            x_aln = x_aln.sample(n=3, ignore_index=True)
+            x_aln.to_csv(f"splits_bag/bcnb_aln_tiny_{i=}_{key}.csv")
+            y_hist = y_hist.sample(n=3, ignore_index=True)
+            y_hist.to_csv(f"splits_bag/bcnb_hist_tiny_{i=}_{key}.csv")
 
 
 os.chdir(proj_dir)

@@ -26,8 +26,8 @@ mkdir results/${NAME}
 python3 condor_main.py -e $EXP_FILE --i $I --output_dir $OUTPUT_DIR
 
 # zip up output
-tar -czf ${NAME}-${VERSION}_${I}.tar.gz results/
-mv ${NAME}-${VERSION}_${I}.tar.gz /staging/spkent/ordinal-mil-nnets/
+# tar -czf ${NAME}-${VERSION}_${I}.tar.gz results/
+# mv ${NAME}-${VERSION}_${I}.tar.gz /staging/spkent/ordinal-mil-nnets/
 
 find $OUTPUT_DIR -name "*.hdf5" -exec rm {} \;
 tar -czf ${NAME}-${VERSION}_sm_${I}.tar.gz results/ 

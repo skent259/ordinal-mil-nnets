@@ -18,14 +18,14 @@ def expand_grid(dictionary):
 
 experiment_1 = expand_grid(
     {
-        "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-        "mil_method": [MILType.MI_ATTENTION, MILType.MI_GATED_ATTENTION],
-        "data_set_type": [DataSetType.FGNET],
-        "data_set_name": ["fgnet_bag_wr=0.5_size=4_i=0",],
+        "ordinal_method": [OrdinalType.CORN],
+        "mil_method": [MILType.MI_ATTENTION, MILType.CAP_MI_NET_DS, MILType.MI_NET],
+        "data_set_type": [DataSetType.BCNB_ALN],
+        "data_set_name": ["bcnb_aln_tiny_i=0",],
         "batch_size": [1],
         "learning_rate": [0.0001],
         "epochs": [2],
-        "pooling_mode": [None],
+        "pooling_mode": ["mean"],
     }
 )
 
@@ -34,8 +34,8 @@ print(experiment_1)
 for _, exp_args in experiment_1.iterrows():
     exp_config = ExperimentConfig(**exp_args)
     print(exp_config)
-    # print(exp_config.model_architecture.build().summary())
+    print(exp_config.model_architecture.build().summary())
 
     exp = ExperimentRunner(exp_config)
-    # exp.run()
+    exp.run(verbose=1)
     print("\n\n\n")
