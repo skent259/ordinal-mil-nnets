@@ -118,14 +118,14 @@ for key, dfs in {"train": train, "valid": validate, "test": test}.items():
         y = x.loc[pd.notnull(x["hist_grade"])].copy()
 
         if key == "train":
-            x_aln = random_under_sampler(x, "aln_status", limit=66)
-            y_hist = random_under_sampler(y, "hist_grade", limit=66)
+            x_aln = random_under_sampler(x, "aln_status")
+            y_hist = random_under_sampler(y, "hist_grade")
         elif key == "valid":
             x_aln = x.sample(n=50, ignore_index=True).copy()
             y_hist = y.sample(n=50, ignore_index=True).copy()
         elif key == "test":
-            x_aln = x.sample(n=100, ignore_index=True).copy()
-            y_hist = y.sample(n=100, ignore_index=True).copy()
+            x_aln = x.copy()
+            y_hist = y.copy()
 
         x_aln.to_csv(f"splits_bag/bcnb_aln_{i=}_{key}.csv")
         y_hist.to_csv(f"splits_bag/bcnb_hist_{i=}_{key}.csv")

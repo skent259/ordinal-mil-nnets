@@ -86,7 +86,7 @@ class ModelArchitecture:
         return Input(shape=(None,) + self.data_set_img_size)
 
     def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
-        if self.data_set_type is DataSetType.FGNET:
+        if self.data_set_type in [DataSetType.FGNET, DataSetType.BCNB_ALN]:
 
             # Small-ish Residual Network from Vargas, Gutierrez, Hervas-Matrinez (2020) Neurocomputing
             x1 = BagWise(
@@ -160,7 +160,7 @@ class ModelArchitecture:
 
             return x_out
 
-        if self.data_set_type is DataSetType.BCNB_ALN:
+        if self.data_set_type is None:
 
             # VGG16, pretrained, as in Xu, Zhu, Tang, et al. (2021)
             # see https://www.tensorflow.org/versions/r2.4/api_docs/python/tf/keras/applications/VGG16

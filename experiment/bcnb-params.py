@@ -47,7 +47,7 @@ experiment_301 = [
         ],
         "batch_size": [1],
         "learning_rate": [0.001, 0.0001, 0.00001],
-        "epochs": [25],
+        "epochs": [50],
         "early_stopping": [False],
     },
     {
@@ -64,7 +64,7 @@ experiment_301 = [
         ],
         "batch_size": [1],
         "learning_rate": [0.001, 0.0001, 0.00001],
-        "epochs": [25],
+        "epochs": [50],
         "early_stopping": [False],
     },
 ]

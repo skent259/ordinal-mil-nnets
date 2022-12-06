@@ -23,7 +23,7 @@ experiment_1 = expand_grid(
         "data_set_type": [DataSetType.BCNB_ALN],
         "data_set_name": ["bcnb_aln_tiny_i=0",],
         "batch_size": [1],
-        "learning_rate": [0.0001],
+        "learning_rate": [0.001],
         "epochs": [2],
         "pooling_mode": ["mean"],
     }

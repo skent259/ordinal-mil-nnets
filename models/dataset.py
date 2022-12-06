@@ -57,7 +57,7 @@ DATASET_PARAM = {
         "splits_dir": "splits_bag/",
         "x_col": "img_name",
         "y_col": "aln_status",
-        "img_size": (224, 224, 3),  # original size: (256, 256, 3)
+        "img_size": (256, 256, 3),
         "n_classes": 3,
         "class_mode": "sparse",
         "augmentation_args": {},
