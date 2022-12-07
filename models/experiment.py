@@ -193,7 +193,7 @@ class ExperimentRunner(object):
         """
 
         if self.config.ordinal_method is OrdinalType.CORAL:
-            ordinal_logits = self.model.predict(test_generator, verbose=1)
+            ordinal_logits = self.model.predict(test_generator, verbose=2)
             if self.config.mil_method is MILType.CAP_MI_NET_DS:
                 ordinal_logits = ordinal_logits[-1]  # take averaged output
             cum_probs = pd.DataFrame(ordinal_logits).apply(scipy.special.expit)
@@ -201,7 +201,7 @@ class ExperimentRunner(object):
             # don't add 1 because we are 0 indexing
 
         if self.config.ordinal_method is OrdinalType.CORN:
-            ordinal_logits = self.model.predict(test_generator, verbose=1)
+            ordinal_logits = self.model.predict(test_generator, verbose=2)
             if self.config.mil_method is MILType.CAP_MI_NET_DS:
                 ordinal_logits = ordinal_logits[-1]  # take averaged output
             cum_probs = pd.DataFrame(coral.corn_cumprobs(ordinal_logits))
