@@ -15,6 +15,16 @@ def expand_grid(dictionary):
     return pd.DataFrame(data, columns=dictionary.keys())
 
 
+def hoist(df, col, names):
+    """
+    Pull out list column into individual columns
+    """
+    df = df.copy()
+    df[names] = pd.DataFrame(df[col].tolist(), index=df.index)
+    del df[col]
+    return df
+
+
 def experiment_df_to_csv(exp: pd.DataFrame, file: str) -> None:
     exp = exp.copy()
 
@@ -31,46 +41,90 @@ def experiment_df_to_csv(exp: pd.DataFrame, file: str) -> None:
     exp.to_csv(file, index=0)
 
 
-# bcnb-3.0.1
-experiment_301 = [
-    {
-        "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-        "data_set_type": [DataSetType.BCNB_ALN],
-        "mil_method": [MILType.CAP_MI_NET, MILType.MI_NET, MILType.CAP_MI_NET_DS],
-        "pooling_mode": ["max", "mean"],
-        "data_set_name": [
-            "bcnb_aln_i=0",
-            "bcnb_aln_i=1",
-            "bcnb_aln_i=2",
-            "bcnb_aln_i=3",
-            "bcnb_aln_i=4",
-        ],
-        "batch_size": [1],
-        "learning_rate": [0.001, 0.0001, 0.00001],
-        "epochs": [50],
-        "early_stopping": [False],
-    },
-    {
-        "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-        "data_set_type": [DataSetType.BCNB_ALN],
-        "mil_method": [MILType.MI_ATTENTION, MILType.MI_GATED_ATTENTION],
-        "pooling_mode": [None],
-        "data_set_name": [
-            "bcnb_aln_i=0",
-            "bcnb_aln_i=1",
-            "bcnb_aln_i=2",
-            "bcnb_aln_i=3",
-            "bcnb_aln_i=4",
-        ],
-        "batch_size": [1],
-        "learning_rate": [0.001, 0.0001, 0.00001],
-        "epochs": [50],
-        "early_stopping": [False],
-    },
+col_order = [
+    "ordinal_method",
+    "mil_method",
+    "pooling_mode",
+    "data_set_type",
+    "data_set_name",
+    "batch_size",
+    "learning_rate",
+    "epochs",
+    "early_stopping",
 ]
 
-experiment_301_df = pd.concat([expand_grid(x) for x in experiment_301])
-experiment_df_to_csv(experiment_301_df, "experiment/params/experiment-bcnb-3.0.1.csv")
+# bcnb-3.0.1
+exp_301 = expand_grid(
+    {
+        "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
+        "mil_pool_combo": [
+            [MILType.CAP_MI_NET, "max"],
+            [MILType.CAP_MI_NET, "mean"],
+            [MILType.MI_NET, "max"],
+            [MILType.MI_NET, "mean"],
+            [MILType.CAP_MI_NET_DS, "max"],
+            [MILType.CAP_MI_NET_DS, "mean"],
+            [MILType.MI_ATTENTION, None],
+            [MILType.MI_GATED_ATTENTION, None],
+        ],
+        "data_set_type": [DataSetType.BCNB_ALN],
+        "data_set_name": [
+            "bcnb_aln_i=0",
+            "bcnb_aln_i=1",
+            "bcnb_aln_i=2",
+            "bcnb_aln_i=3",
+            "bcnb_aln_i=4",
+        ],
+        "batch_size": [1],
+        "learning_rate": [0.001, 0.0001, 0.00001],
+        "epochs": [50],
+        "early_stopping": [False],
+    }
+)
+
+exp_301 = hoist(exp_301, col="mil_pool_combo", names=["mil_method", "pooling_mode"])
+exp_301 = exp_301[col_order]
+
+experiment_df_to_csv(exp_301, "experiment/params/experiment-bcnb-3.0.1.csv")
+
+
+# bcnb-3.0.2
+exp_302 = expand_grid(
+    {
+        "ordinal_method": [
+            OrdinalType.CLM_QWK_LOGIT,
+            OrdinalType.CLM_QWK_PROBIT,
+            OrdinalType.CLM_QWK_CLOGLOG,
+        ],
+        "mil_pool_combo": [
+            [MILType.CAP_MI_NET, "max"],
+            [MILType.CAP_MI_NET, "mean"],
+            [MILType.MI_NET, "max"],
+            [MILType.MI_NET, "mean"],
+            [MILType.CAP_MI_NET_DS, "max"],
+            [MILType.CAP_MI_NET_DS, "mean"],
+            [MILType.MI_ATTENTION, None],
+            [MILType.MI_GATED_ATTENTION, None],
+        ],
+        "data_set_type": [DataSetType.BCNB_ALN],
+        "data_set_name": [
+            "bcnb_aln_i=0",
+            "bcnb_aln_i=1",
+            "bcnb_aln_i=2",
+            "bcnb_aln_i=3",
+            "bcnb_aln_i=4",
+        ],
+        "batch_size": [1],
+        "learning_rate": [0.001, 0.0001, 0.00001],
+        "epochs": [50],
+        "early_stopping": [False],
+    }
+)
+
+exp_302 = hoist(exp_302, col="mil_pool_combo", names=["mil_method", "pooling_mode"])
+exp_302 = exp_302[col_order]
+
+experiment_df_to_csv(exp_302, "experiment/params/experiment-bcnb-3.0.2.csv")
 
 
 # # Test read in

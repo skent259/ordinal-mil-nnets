@@ -1,0 +1,30 @@
+# Condor submission file for Python
+
+# EXECUTION FILE
+universe    =   vanilla
+batch_name  =   bcnb-3.0.2
+initialdir  =   /home/spkent/ordinal-mil-nnets
+
+executable  =   condor/condor_main.sh
+arguments   =   bcnb 3.0.2 $(Step) results/bcnb/
+# usage: condor_main.sh NAME VERSION I OUTPUT_DIR
+
+# FILE TRANSFER
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = condor/condor_main.py, experiment/params/experiment-bcnb-3.0.2.csv
+
+# RESOURCES
+request_cpus = 1
+request_memory = 99GB
+request_disk = 99GB
+requirements = (Target.HasCHTCStaging == true)
++LongJob = TRUE
+# requirements = (HasChtcSoftware == true)
+
+# OUTPUT AND LOGGING
+output		=	condor/bcnb-3.0.2/out/bcnb-3.0.2_i=$(Step).out
+error       =   condor/bcnb-3.0.2/err/bcnb-3.0.2_i=$(Step).err
+log         =   condor/bcnb-3.0.2/log/bcnb-3.0.2_i=$(Step).log
+
+queue 360

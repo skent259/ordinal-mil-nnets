@@ -15,6 +15,16 @@ def expand_grid(dictionary):
     return pd.DataFrame(data, columns=dictionary.keys())
 
 
+def hoist(df, col, names):
+    """
+    Pull out list column into individual columns
+    """
+    df = df.copy()
+    df[names] = pd.DataFrame(df[col].tolist(), index=df.index)
+    del df[col]
+    return df
+
+
 def experiment_df_to_csv(exp: pd.DataFrame, file: str) -> None:
     exp = exp.copy()
 
@@ -30,6 +40,18 @@ def experiment_df_to_csv(exp: pd.DataFrame, file: str) -> None:
     del exp["config"]
     exp.to_csv(file, index=0)
 
+
+col_order = [
+    "ordinal_method",
+    "mil_method",
+    "pooling_mode",
+    "data_set_type",
+    "data_set_name",
+    "batch_size",
+    "learning_rate",
+    "epochs",
+    "early_stopping",
+]
 
 # fgnet-1.0.0
 experiment_100 = expand_grid(
@@ -181,6 +203,65 @@ experiment_103 = expand_grid(
 )
 
 experiment_df_to_csv(experiment_103, "experiment/params/experiment-fgnet-1.0.3.csv")
+
+
+# fgnet-1.0.4
+exp_104 = expand_grid(
+    {
+        "ordinal_method": [
+            OrdinalType.CLM_QWK_LOGIT,
+            OrdinalType.CLM_QWK_PROBIT,
+            OrdinalType.CLM_QWK_CLOGLOG,
+        ],
+        "mil_pool_combo": [
+            [MILType.CAP_MI_NET, "max"],
+            [MILType.CAP_MI_NET, "mean"],
+            [MILType.MI_NET, "max"],
+            [MILType.MI_NET, "mean"],
+            [MILType.CAP_MI_NET_DS, "max"],
+            [MILType.CAP_MI_NET_DS, "mean"],
+            [MILType.MI_ATTENTION, None],
+            [MILType.MI_GATED_ATTENTION, None],
+        ],
+        "data_set_type": [DataSetType.FGNET],
+        "data_set_name": [
+            "fgnet_bag_wr=0.5_size=4_i=0_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=0_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=1_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=2_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=3_j=4",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=0",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=1",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=2",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=3",
+            "fgnet_bag_wr=0.5_size=4_i=4_j=4",
+        ],
+        "batch_size": [1],
+        "learning_rate": [0.01, 0.001, 0.0001],
+        "epochs": [100],
+        "early_stopping": [False],
+    }
+)
+
+exp_104 = hoist(exp_104, col="mil_pool_combo", names=["mil_method", "pooling_mode"])
+exp_104 = exp_104[col_order]
+
+experiment_df_to_csv(exp_104, "experiment/params/experiment-fgnet-1.0.4.csv")
 
 
 # # Test read in
