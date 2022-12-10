@@ -6,6 +6,7 @@ from typing import Dict, List
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
 import coral_ordinal as coral
+import numpy as np
 import pandas as pd
 import scipy
 import tensorflow as tf
@@ -156,6 +157,14 @@ class ExperimentRunner(object):
     def make_data_generator(self, dataframe: pd.DataFrame):
         ds = self.data_set
 
+        class_mode = {
+            OrdinalType.CORN: "sparse",
+            OrdinalType.CORAL: "sparse",
+            OrdinalType.CLM_QWK_LOGIT: "categorical",
+            OrdinalType.CLM_QWK_PROBIT: "categorical",
+            OrdinalType.CLM_QWK_CLOGLOG: "categorical",
+        }
+
         return MILImageDataGenerator(
             dataframe=dataframe,
             directory=ds.params["dir"] + "images/",
@@ -163,7 +172,7 @@ class ExperimentRunner(object):
             y_col=ds.params["y_col"],
             batch_size=1,
             shuffle=True,
-            class_mode=ds.params["class_mode"],
+            class_mode=class_mode.get(self.config.ordinal_method),
             target_size=ds.params["img_size"],
             **ds.params["augmentation_args"],
         )
@@ -206,6 +215,16 @@ class ExperimentRunner(object):
                 ordinal_logits = ordinal_logits[-1]  # take averaged output
             cum_probs = pd.DataFrame(coral.corn_cumprobs(ordinal_logits))
             predicted_class_indices = cum_probs.apply(lambda x: x > 0.5).sum(axis=1)
+
+        if self.config.ordinal_method in [
+            OrdinalType.CLM_QWK_LOGIT,
+            OrdinalType.CLM_QWK_PROBIT,
+            OrdinalType.CLM_QWK_CLOGLOG,
+        ]:
+            categorical_probs = self.model.predict(test_generator, verbose=2)
+            if self.config.mil_method is MILType.CAP_MI_NET_DS:
+                categorical_probs = categorical_probs[-1]  # take averaged output
+            predicted_class_indices = np.argmax(categorical_probs, axis=1)
 
         labels = dict((v, k) for k, v in self.class_indices.items())
         predictions = [labels[k] for k in predicted_class_indices]

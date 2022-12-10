@@ -50,6 +50,8 @@ class CLM(keras.layers.Layer):
         return th
 
     def _nnpom(self, projected, thresholds, m):
+        # projected: [None, M]
+        # thesholds: [num_classes, ]
         if self.use_tau == 1:
             projected = projected / self.tau
 
@@ -136,9 +138,23 @@ class CLM(keras.layers.Layer):
         # set this up with variable batch size. I've looked at these stackoverflow:
         # https://stackoverflow.com/questions/56101920/get-batch-size-in-keras-custom-layer-and-use-tensorflow-operations-tf-variable
         # https://stackoverflow.com/questions/70421012/how-to-define-a-new-tensor-with-a-dynamic-shape-to-support-batching-in-a-custom
+        # https://github.com/tensorflow/tensorflow/blob/v2.4.0/tensorflow/python/keras/layers/wrappers.py#L86-L330
         batch_size = 1
         thresholds = self._convert_thresholds(self.thresholds_b, self.thresholds_a)
         return self._nnpom(x, thresholds, m=batch_size)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], 1)
+        return input_shape[:-1].concatenate(self.num_classes)
+        # return (input_shape[:-1], self.num_classes)
+
+    def get_config(self):
+
+        config = super().get_config().copy()
+        config.update(
+            {
+                "num_classes": self.num_classes,
+                "link_function": self.link_function,
+                "use_tau": self.use_tau,
+            }
+        )
+        return config

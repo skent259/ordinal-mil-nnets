@@ -95,7 +95,45 @@ def MILPool(pooling_mode: str = "max"):
 
 
 # # Model 3: MI-net with softmax output (categorical), resnet blocks
-inputs = Input(shape=(None,) + ds.params["img_size"])
+# inputs = Input(shape=(None,) + ds.params["img_size"])
+# # inputs, y = train_generator[0]
+
+# x = BagWise(Conv2D(32, (7, 7), strides=2, padding="same", activation="relu"))(inputs)
+# x = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x)
+
+# x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+# x = bagwise_residual_block(x, 64, (3, 3), stride=1, nonlinearity="relu")
+
+# x = bagwise_residual_block(x, 128, (3, 3), stride=2, nonlinearity="relu")
+# x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+# x = bagwise_residual_block(x, 128, (3, 3), stride=1, nonlinearity="relu")
+
+# x = bagwise_residual_block(x, 256, (3, 3), stride=2, nonlinearity="relu")
+# x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+# x = bagwise_residual_block(x, 256, (3, 3), stride=1, nonlinearity="relu")
+
+# x = bagwise_residual_block(x, 512, (3, 3), stride=2, nonlinearity="relu")
+# x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+# x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
+
+# x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
+
+# outputs = MILPool(pooling_mode="max")()(x)
+# outputs = Dense(1)(outputs)
+# outputs = BatchNormalization()(outputs)
+# outputs = CLM(n_classes, "logit", use_tau=True)(outputs)
+
+# cost_matrix = tf.constant(make_cost_matrix(n_classes), dtype=tf.keras.backend.floatx())
+
+# model = tf.keras.Model(inputs=inputs, outputs=outputs, name="MI-net_corn_resnet")
+# model.compile(
+#     optimizer=tf.keras.optimizers.Adam(lr=0.05),
+#     loss=qwk_loss(cost_matrix),
+#     metrics=["accuracy"],
+# )
+
+# # Model 2: mi-net with softmax output (categorical), resnet blocks
+inputs = Input(shape=(None,) + ds.params["img_size"], batch_size=1)
 # inputs, y = train_generator[0]
 
 x = BagWise(Conv2D(32, (7, 7), strides=2, padding="same", activation="relu"))(inputs)
@@ -118,11 +156,17 @@ x = bagwise_residual_block(x, 512, (3, 3), stride=1, nonlinearity="relu")
 
 x = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
 
-outputs = MILPool(pooling_mode="max")()(x)
+clm = tf.keras.Sequential(
+    [
+        BagWise(Dense(1)),
+        BagWise(BatchNormalization()),
+        BagWise(CLM(n_classes, "logit", use_tau=True)),
+    ],
+    name="dense-plus_clm",
+)
 
-outputs = Dense(1)(outputs)
-outputs = BatchNormalization()(outputs)
-outputs = CLM(n_classes, "logit", use_tau=True)(outputs)
+outputs = clm(x)
+outputs = MILPool(pooling_mode="max")()(outputs)
 
 cost_matrix = tf.constant(make_cost_matrix(n_classes), dtype=tf.keras.backend.floatx())
 

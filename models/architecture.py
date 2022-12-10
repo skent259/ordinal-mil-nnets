@@ -7,6 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import Model, applications
 from tensorflow.keras.layers import (
     Activation,
+    BatchNormalization,
     Conv2D,
     Dense,
     Dropout,
@@ -19,6 +20,8 @@ from tensorflow.keras.layers import (
 )
 from tensorflow.keras.models import Sequential
 
+from models.clm_qwk.activations import CLM
+from models.clm_qwk.losses import make_cost_matrix, qwk_loss
 from models.clm_qwk.resnet import bagwise_residual_block
 from models.dataset import DataSetType
 from models.mil_attention.layer import mil_attention_layer
@@ -28,6 +31,9 @@ from models.mil_nets.layer import BagWise, MILPool
 class OrdinalType(Enum):
     CORN = "corn"
     CORAL = "coral"
+    CLM_QWK_LOGIT = "clm_qwk_logit"
+    CLM_QWK_PROBIT = "clm_qwk_probit"
+    CLM_QWK_CLOGLOG = "clm_qwk_cloglog"
 
 
 class MILType(Enum):
@@ -83,7 +89,7 @@ class ModelArchitecture:
         return model
 
     def input_layer(self) -> tf.keras.layers.Layer:
-        return Input(shape=(None,) + self.data_set_img_size)
+        return Input(shape=(None,) + self.data_set_img_size, batch_size=1)
 
     def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
         if self.data_set_type in [DataSetType.FGNET, DataSetType.BCNB_ALN]:
@@ -217,17 +223,50 @@ class ModelArchitecture:
 
     @property
     def ordinal_layer(self) -> tf.keras.layers.Layer:
+        def clm_layers(n_classes: int, link_function: str, use_tau: bool = True):
+            _name = tf.compat.v1.get_default_graph().unique_name("dense_plus_clm")
+            if self.mil_type is MILType.MI_NET:
+                layers = [
+                    BagWise(Dense(1)),
+                    BagWise(BatchNormalization()),
+                    BagWise(CLM(n_classes, link_function, use_tau)),
+                ]
+            else:
+                layers = [
+                    Dense(1),
+                    BatchNormalization(),
+                    CLM(n_classes, link_function, use_tau),
+                ]
+
+            return tf.keras.Sequential(layers, name=_name)
+
         layer = {
             OrdinalType.CORAL: coral.CoralOrdinal(self.n_classes),
             OrdinalType.CORN: coral.CornOrdinal(self.n_classes),
+            OrdinalType.CLM_QWK_LOGIT: clm_layers(self.n_classes, "logit"),
+            OrdinalType.CLM_QWK_PROBIT: clm_layers(self.n_classes, "probit"),
+            OrdinalType.CLM_QWK_CLOGLOG: clm_layers(self.n_classes, "cloglog"),
         }
         return layer[self.ordinal_type]
 
     @property
     def ordinal_loss(self) -> tf.keras.layers.Layer:
+
+        if self.ordinal_type in [
+            OrdinalType.CLM_QWK_LOGIT,
+            OrdinalType.CLM_QWK_PROBIT,
+            OrdinalType.CLM_QWK_CLOGLOG,
+        ]:
+            cost_matrix = tf.constant(
+                make_cost_matrix(self.n_classes), dtype=tf.keras.backend.floatx()
+            )
+
         loss = {
             OrdinalType.CORAL: coral.OrdinalCrossEntropy(num_classes=self.n_classes),
             OrdinalType.CORN: coral.CornOrdinalCrossEntropy(),
+            OrdinalType.CLM_QWK_LOGIT: qwk_loss(cost_matrix),
+            OrdinalType.CLM_QWK_PROBIT: qwk_loss(cost_matrix),
+            OrdinalType.CLM_QWK_CLOGLOG: qwk_loss(cost_matrix),
         }
         return loss[self.ordinal_type]
 
@@ -235,9 +274,12 @@ class ModelArchitecture:
     def ordinal_metrics(self) -> tf.keras.layers.Layer:
         # NOTE: will compute RMSE, Accuracy based on saved predictions later, because
         # coral/corn output returns 5 outputs, not 1
-        mae_metric = {
+        metric = {
             OrdinalType.CORAL: coral.MeanAbsoluteErrorLabels(),
             OrdinalType.CORN: coral.MeanAbsoluteErrorLabels(corn_logits=True),
+            OrdinalType.CLM_QWK_LOGIT: "accuracy",
+            OrdinalType.CLM_QWK_PROBIT: "accuracy",
+            OrdinalType.CLM_QWK_CLOGLOG: "accuracy",
         }
-        return [mae_metric[self.ordinal_type]]
+        return [metric[self.ordinal_type]]
 

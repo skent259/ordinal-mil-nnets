@@ -21,7 +21,6 @@ DATASET_PARAM = {
         "y_col": "age_group",
         "img_size": (128, 128, 3),
         "n_classes": 6,
-        "class_mode": "sparse",
         "augmentation_args": {
             "horizontal_flip": True,
             "crop_range": 0.1,
@@ -40,7 +39,6 @@ DATASET_PARAM = {
         "y_col": "score",
         "img_size": (128, 128, 3),  # matches Shi, Cao, and Raschka (2022)
         "n_classes": 5,
-        "class_mode": "sparse",
         "augmentation_args": {
             "horizontal_flip": False,
             "crop_range": 0.05,
@@ -59,7 +57,6 @@ DATASET_PARAM = {
         "y_col": "aln_status",
         "img_size": (256, 256, 3),
         "n_classes": 3,
-        "class_mode": "sparse",
         "augmentation_args": {},
     },
 }
@@ -78,7 +75,7 @@ class DataSet:
     name : str 
         The name of the dataset.
     params : dict
-        The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', 'class_mode', and 
+        The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', and 
         'augmentation_args'. 
     train : str
         The file that describes the training information. 

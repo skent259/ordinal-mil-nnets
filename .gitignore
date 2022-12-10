@@ -141,6 +141,7 @@ datasets/bcnb/images/
 datasets/bcnb/wsi/
 datasets/bcnb/splits/
 datasets/bcnb/splits_bag/
+datasets/tma
 
 # mat data files
 *.mat
