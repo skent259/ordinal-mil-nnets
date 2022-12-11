@@ -174,6 +174,7 @@ class ExperimentRunner(object):
             shuffle=True,
             class_mode=class_mode.get(self.config.ordinal_method),
             target_size=ds.params["img_size"],
+            class_indices=ds.params.get("class_indices"),
             **ds.params["augmentation_args"],
         )
 

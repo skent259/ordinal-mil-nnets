@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -21,6 +21,14 @@ DATASET_PARAM = {
         "y_col": "age_group",
         "img_size": (128, 128, 3),
         "n_classes": 6,
+        "class_indices": {
+            "00-03": 0,
+            "04-11": 1,
+            "12-16": 2,
+            "17-24": 3,
+            "25-40": 4,
+            "41+": 5,
+        },
         "augmentation_args": {
             "horizontal_flip": True,
             "crop_range": 0.1,
@@ -137,6 +145,7 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
         shuffle: bool,
         class_mode: str,
         target_size: Tuple[int],
+        class_indices: Dict[str, int] = None,
         horizontal_flip: bool = False,
         crop_range: float = 0,
         contrast_lower: float = 1.0,
@@ -167,8 +176,11 @@ class MILImageDataGenerator(tf.keras.utils.Sequence):
 
         self.n = len(self.df)
 
-        class_indices = np.unique(self.df[self.y_col].explode())
-        self.class_indices = dict(zip(class_indices, np.arange(len(class_indices))))
+        if not class_indices:
+            class_indices = np.unique(self.df[self.y_col].explode())
+            self.class_indices = dict(zip(class_indices, np.arange(len(class_indices))))
+        else:
+            self.class_indices = class_indices
 
     def on_epoch_end(self):
         if self.shuffle:
