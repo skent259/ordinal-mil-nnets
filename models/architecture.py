@@ -252,14 +252,9 @@ class ModelArchitecture:
     @property
     def ordinal_loss(self) -> tf.keras.layers.Layer:
 
-        if self.ordinal_type in [
-            OrdinalType.CLM_QWK_LOGIT,
-            OrdinalType.CLM_QWK_PROBIT,
-            OrdinalType.CLM_QWK_CLOGLOG,
-        ]:
-            cost_matrix = tf.constant(
-                make_cost_matrix(self.n_classes), dtype=tf.keras.backend.floatx()
-            )
+        cost_matrix = tf.constant(
+            make_cost_matrix(self.n_classes), dtype=tf.keras.backend.floatx()
+        )
 
         loss = {
             OrdinalType.CORAL: coral.OrdinalCrossEntropy(num_classes=self.n_classes),
