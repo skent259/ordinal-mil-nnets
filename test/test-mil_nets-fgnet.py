@@ -6,7 +6,6 @@ import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from models.dataset import DataSet, MILImageDataGenerator
 from tensorflow.keras import optimizers
 from tensorflow.keras.layers import (
     Activation,
@@ -21,6 +20,9 @@ from tensorflow.keras.layers import (
     TimeDistributed,
 )
 from tensorflow.keras.models import Sequential
+
+from models.dataset import DataSet
+from models.generators import MILImageDataGenerator
 
 ds = DataSet(name="fgnet_bag", dir="datasets/fgnet/", img_size=(128, 128))
 

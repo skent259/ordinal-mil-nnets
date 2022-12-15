@@ -13,7 +13,8 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import CSVLogger, EarlyStopping, ModelCheckpoint
 
 from models.architecture import MILType, ModelArchitecture, OrdinalType
-from models.dataset import DataSet, DataSetType, MILImageDataGenerator
+from models.dataset import DataSet, DataSetType
+from models.generators import MILImageDataGenerator
 
 
 @dataclass

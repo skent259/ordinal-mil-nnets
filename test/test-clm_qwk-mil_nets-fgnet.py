@@ -20,7 +20,8 @@ from tensorflow.keras.layers import (
 from models.clm_qwk.activations import CLM
 from models.clm_qwk.losses import make_cost_matrix, qwk_loss
 from models.clm_qwk.resnet import bagwise_residual_block
-from models.dataset import DataSet, DataSetType, MILImageDataGenerator
+from models.dataset import DataSet, DataSetType
+from models.generators import MILImageDataGenerator
 
 ds = DataSet(DataSetType.FGNET, name="fgnet_bag_wr=0.5_size=4_i=0_j=0")
 

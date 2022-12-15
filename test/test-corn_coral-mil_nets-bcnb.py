@@ -20,7 +20,8 @@ from tensorflow.keras.layers import (
 from tensorflow.keras.models import Sequential
 
 from models.clm_qwk.resnet import bagwise_residual_block
-from models.dataset import DataSet, DataSetType, MILImageDataGenerator
+from models.dataset import DataSet, DataSetType
+from models.generators import MILImageDataGenerator
 
 ds = DataSet(DataSetType.BCNB_ALN, name="bcnb_aln_i=0")
 
