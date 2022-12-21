@@ -6,6 +6,7 @@ class DataSetType(Enum):
     FGNET = "fgnet"
     AES = "aes"
     BCNB_ALN = "bcnb"
+    AMREV_TV = "amrev_tv"
 
 
 DATASET_PARAM = {
@@ -60,6 +61,15 @@ DATASET_PARAM = {
         "y_col": "aln_status",
         "img_size": (256, 256, 3),
         "n_classes": 3,
+        "augmentation_args": {},
+    },
+    DataSetType.AMREV_TV: {
+        "dir": "datasets/amrev/",
+        "splits_dir": "splits_bag/",
+        "x_col": "review",
+        "y_col": "rating",
+        "img_size": None,
+        "n_classes": 5,
         "augmentation_args": {},
     },
 }

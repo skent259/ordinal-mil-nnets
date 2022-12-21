@@ -142,6 +142,8 @@ datasets/bcnb/wsi/
 datasets/bcnb/splits/
 datasets/bcnb/splits_bag/
 datasets/tma
+datasets/amrev/reviews/
+datasets/amrev/splits_bag/
 
 # mat data files
 *.mat
@@ -162,3 +164,6 @@ log-*
 # Quarto files
 analysis/*_files/
 analysis/*.html
+
+# tensorflow hub files
+tfhub/
