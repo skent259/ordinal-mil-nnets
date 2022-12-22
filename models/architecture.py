@@ -1,9 +1,12 @@
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
 import coral_ordinal as coral
 import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow_text as text
 from tensorflow.keras import Model, applications
 from tensorflow.keras.layers import (
     Activation,
@@ -89,7 +92,10 @@ class ModelArchitecture:
         return model
 
     def input_layer(self) -> tf.keras.layers.Layer:
-        return Input(shape=(None,) + self.data_set_img_size, batch_size=1)
+        if self.data_set_type is DataSetType.AMREV_TV:
+            return Input(shape=(None,), dtype=tf.string, batch_size=1)
+        else:
+            return Input(shape=(None,) + self.data_set_img_size, batch_size=1)
 
     def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
         if self.data_set_type in [DataSetType.FGNET, DataSetType.BCNB_ALN]:
@@ -163,6 +169,51 @@ class ModelArchitecture:
             else:
                 x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
                 x_out = BagWise(Dense(1000, activation="relu"))(x_out)
+
+            return x_out
+
+        if self.data_set_type is DataSetType.AMREV_TV:
+
+            # BERT (Delvin, Chang, Lee, & Toutanova, 2018)
+            # https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/4
+
+            def keras_hub_loader(folder, url, name):
+                """Load KerasLayer from folder if available, with backup url"""
+                if os.path.exists(folder):
+                    return hub.KerasLayer(folder, name=name)
+                else:
+                    return hub.KerasLayer(url, name=name)
+
+            # Load BERT from local download or web
+            bert_preprocess = keras_hub_loader(
+                folder="tfhub/bert_en_uncased_preprocess_3",
+                url="https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3",
+                name="bert_preprocess",
+            )
+
+            bert_encoder = keras_hub_loader(
+                folder="tfhub/bert_en_uncased_L-12_H-768_A-12_4",
+                url="https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/4",
+                name="bert_encoder",
+            )
+
+            bert = tf.squeeze(layer, axis=0)  # collapse bag_size dimension
+            bert = bert_preprocess(bert)
+            bert = bert_encoder(bert)
+            bert = tf.expand_dims(bert["pooled_output"], axis=0)  # uncollapse
+
+            x1 = BagWise(Dense(300, activation="relu"))(bert)
+            x1 = BagWise(Dropout(0.2))(x1)
+            x1 = BagWise(BatchNormalization())(x1)
+
+            x2 = BagWise(Dense(300, activation="relu"))(x1)
+            x2 = BagWise(Dropout(0.2))(x2)
+            x2 = BagWise(BatchNormalization())(x2)
+
+            if self.mil_type is MILType.CAP_MI_NET_DS:
+                x_out = [bert, x1, x2]
+            else:
+                x_out = x2
 
             return x_out
 

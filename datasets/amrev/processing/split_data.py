@@ -59,10 +59,10 @@ os.chdir(data_dir)
 
 # datasets = ['cameras', 'laptops', 'mobilephone', 'tablets', 'TVs', 'video_surveillance']
 datasets = ["TVs"]
-n_rep = 20
+n_rep = 10
 n_train = 1000
 n_valid = 200
-n_test = 20000
+n_test = 2000
 
 rng = np.random.default_rng(8)
 

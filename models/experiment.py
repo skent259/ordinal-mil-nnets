@@ -14,7 +14,7 @@ from tensorflow.keras.callbacks import CSVLogger, EarlyStopping, ModelCheckpoint
 
 from models.architecture import MILType, ModelArchitecture, OrdinalType
 from models.dataset import DataSet, DataSetType
-from models.generators import MILImageDataGenerator
+from models.generators import MILImageDataGenerator, MILTextDataGenerator
 
 
 @dataclass
@@ -166,18 +166,29 @@ class ExperimentRunner(object):
             OrdinalType.CLM_QWK_CLOGLOG: "categorical",
         }
 
-        return MILImageDataGenerator(
-            dataframe=dataframe,
-            directory=ds.params["dir"] + "images/",
-            x_col=ds.params["x_col"],
-            y_col=ds.params["y_col"],
-            batch_size=1,
-            shuffle=True,
-            class_mode=class_mode.get(self.config.ordinal_method),
-            target_size=ds.params["img_size"],
-            class_indices=ds.params.get("class_indices"),
-            **ds.params["augmentation_args"],
-        )
+        if ds.data_set_type is DataSetType.AMREV_TV:
+            return MILTextDataGenerator(
+                dataframe=dataframe,
+                x_col=ds.params["x_col"],
+                y_col=ds.params["y_col"],
+                batch_size=1,
+                shuffle=True,
+                class_mode=class_mode.get(self.config.ordinal_method),
+                class_indices=ds.params.get("class_indices"),
+            )
+        else:
+            return MILImageDataGenerator(
+                dataframe=dataframe,
+                directory=ds.params["dir"] + "images/",
+                x_col=ds.params["x_col"],
+                y_col=ds.params["y_col"],
+                batch_size=1,
+                shuffle=True,
+                class_mode=class_mode.get(self.config.ordinal_method),
+                target_size=ds.params["img_size"],
+                class_indices=ds.params.get("class_indices"),
+                **ds.params["augmentation_args"],
+            )
 
     def train(
         self,
