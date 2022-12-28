@@ -3,11 +3,15 @@ import sys
 
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
+import nltk
 import pandas as pd
 
 from models.architecture import MILType, OrdinalType
 from models.dataset import DataSetType
 from models.experiment import ExperimentConfig, ExperimentRunner
+
+# modify nltk path
+nltk.data.path.append("nltk_data")
 
 # Command line arguments
 parser = argparse.ArgumentParser()
