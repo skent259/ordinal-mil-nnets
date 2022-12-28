@@ -92,7 +92,7 @@ class ModelArchitecture:
         return model
 
     def input_layer(self) -> tf.keras.layers.Layer:
-        if self.data_set_type is DataSetType.AMREV_TV:
+        if self.data_set_type in [DataSetType.AMREV_TV, DataSetType.IMDB]:
             return Input(shape=(None,), dtype=tf.string, batch_size=1)
         else:
             return Input(shape=(None,) + self.data_set_img_size, batch_size=1)
@@ -172,7 +172,7 @@ class ModelArchitecture:
 
             return x_out
 
-        if self.data_set_type is DataSetType.AMREV_TV:
+        if self.data_set_type in [DataSetType.AMREV_TV, DataSetType.IMDB]:
 
             # BERT (Delvin, Chang, Lee, & Toutanova, 2018)
             # https://tfhub.dev/tensorflow/bert_en_uncased_L-12_H-768_A-12/4

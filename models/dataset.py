@@ -7,6 +7,7 @@ class DataSetType(Enum):
     AES = "aes"
     BCNB_ALN = "bcnb"
     AMREV_TV = "amrev_tv"
+    IMDB = "imdb"
 
 
 DATASET_PARAM = {
@@ -70,6 +71,27 @@ DATASET_PARAM = {
         "y_col": "rating",
         "img_size": None,
         "n_classes": 5,
+        "augmentation_args": {},
+    },
+    DataSetType.IMDB: {
+        "dir": "datasets/imdb/",
+        "splits_dir": "splits_bag/",
+        "x_col": "review",
+        "y_col": "rating",
+        "img_size": None,
+        "n_classes": 10,
+        "class_indices": {
+            "1": 0,
+            "2": 1,
+            "3": 2,
+            "4": 3,
+            "5": 4,
+            "6": 5,
+            "7": 6,
+            "8": 7,
+            "9": 8,
+            "10": 9,
+        },
         "augmentation_args": {},
     },
 }

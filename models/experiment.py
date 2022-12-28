@@ -166,7 +166,7 @@ class ExperimentRunner(object):
             OrdinalType.CLM_QWK_CLOGLOG: "categorical",
         }
 
-        if ds.data_set_type is DataSetType.AMREV_TV:
+        if ds.data_set_type in [DataSetType.AMREV_TV, DataSetType.IMDB]:
             return MILTextDataGenerator(
                 dataframe=dataframe,
                 x_col=ds.params["x_col"],
