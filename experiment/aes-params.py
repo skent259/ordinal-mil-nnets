@@ -1,35 +1,10 @@
 import sys
-from itertools import product
 
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
 
-import pandas as pd
-
+from experiment.paramtools import expand_grid, experiment_df_to_csv, hoist
 from models.architecture import MILType, OrdinalType
 from models.dataset import DataSetType
-from models.experiment import ExperimentConfig
-
-
-def expand_grid(dictionary):
-    data = [row for row in product(*dictionary.values())]
-    return pd.DataFrame(data, columns=dictionary.keys())
-
-
-def experiment_df_to_csv(exp: pd.DataFrame, file: str) -> None:
-    exp = exp.copy()
-
-    # Add a column for file name
-    exp["config"] = [ExperimentConfig(**exp_args) for _, exp_args in exp.iterrows()]
-    exp["file"] = [x.file["test_result"] for x in exp["config"]]
-
-    # Convert formally typed columns to their "name"
-    for col in ["ordinal_method", "mil_method", "data_set_type"]:
-        exp[col] = exp[col].apply(lambda x: x.name)
-
-    # Save to .csv file
-    del exp["config"]
-    exp.to_csv(file, index=0)
-
 
 # aes-2.0.1
 experiment_201 = expand_grid(
