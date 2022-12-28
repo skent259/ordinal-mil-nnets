@@ -22,6 +22,15 @@ tar -xzf to-transfer-${NAME}.tar.gz
 mkdir results
 mkdir results/${NAME}
 
+export NLTK_Data="./nltk_data"
+
+# if [ ${NAME} == "bcnb" ]; then
+#     echo ~/
+#     mkdir ~/.keras/
+#     mkdir ~/.keras/models/
+#     cp /staging/spkent/ordinal-mil-nnets/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5 ~/.keras/models/
+# fi
+
 # run script
 python3 condor_main.py -e $EXP_FILE --i $I --output_dir $OUTPUT_DIR
 

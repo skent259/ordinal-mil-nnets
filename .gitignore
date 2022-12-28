@@ -169,3 +169,6 @@ analysis/*.html
 
 # tensorflow hub files
 tfhub/
+
+# NLTK data files
+nltk_data/
