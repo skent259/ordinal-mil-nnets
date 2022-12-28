@@ -19,18 +19,18 @@ def expand_grid(dictionary):
 experiment_1 = expand_grid(
     {
         "ordinal_method": [
-            # OrdinalType.CORAL,
+            OrdinalType.CORAL,
             OrdinalType.CORN,
-            # OrdinalType.CLM_QWK_LOGIT,
+            OrdinalType.CLM_QWK_LOGIT,
         ],
         "mil_method": [
             MILType.MI_NET,
-            # MILType.CAP_MI_NET,
-            # MILType.MI_ATTENTION,
-            # MILType.CAP_MI_NET_DS,
+            MILType.CAP_MI_NET,
+            MILType.MI_ATTENTION,
+            MILType.CAP_MI_NET_DS,
         ],
-        "data_set_type": [DataSetType.AMREV_TV],
-        "data_set_name": ["amrev_TVs_i=0",],
+        "data_set_type": [DataSetType.IMDB],
+        "data_set_name": ["imdb_small",],
         "batch_size": [1],
         "learning_rate": [0.001],
         "epochs": [2],
