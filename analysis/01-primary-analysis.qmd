@@ -20,13 +20,16 @@ library(ggfortify)
 library(patchwork)
 
 library(lme4)
+library(emmeans)
 
 # Read in data
 df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
-# exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "aes-2.1.0")
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3")
+# exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1")
+
+`%ni%` <- Negate(`%in%`)
 
 ```
 
@@ -35,55 +38,98 @@ exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3")
 Factors used:
 
 ``` python
+# for all experiments 
 {
-  "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-  "mil_method": [MILType.CAP_MI_NET, MILType.MI_NET, MILType.CAP_MI_NET_DS],
-  "data_set_type": [DataSetType.FGNET],
-  "data_set_name": [
-      "fgnet_bag_wr=0.5_size=4_i=0_j=0",
-      "fgnet_bag_wr=0.5_size=4_i=0_j=1",
-      "fgnet_bag_wr=0.5_size=4_i=0_j=2",
-      "fgnet_bag_wr=0.5_size=4_i=0_j=3",
-      "fgnet_bag_wr=0.5_size=4_i=0_j=4",
-      "fgnet_bag_wr=0.5_size=4_i=1_j=0",
-      "fgnet_bag_wr=0.5_size=4_i=1_j=1",
-      "fgnet_bag_wr=0.5_size=4_i=1_j=2",
-      "fgnet_bag_wr=0.5_size=4_i=1_j=3",
-      "fgnet_bag_wr=0.5_size=4_i=1_j=4",
-      "fgnet_bag_wr=0.5_size=4_i=2_j=0",
-      "fgnet_bag_wr=0.5_size=4_i=2_j=1",
-      "fgnet_bag_wr=0.5_size=4_i=2_j=2",
-      "fgnet_bag_wr=0.5_size=4_i=2_j=3",
-      "fgnet_bag_wr=0.5_size=4_i=2_j=4",
-      "fgnet_bag_wr=0.5_size=4_i=3_j=0",
-      "fgnet_bag_wr=0.5_size=4_i=3_j=1",
-      "fgnet_bag_wr=0.5_size=4_i=3_j=2",
-      "fgnet_bag_wr=0.5_size=4_i=3_j=3",
-      "fgnet_bag_wr=0.5_size=4_i=3_j=4",
-      "fgnet_bag_wr=0.5_size=4_i=4_j=0",
-      "fgnet_bag_wr=0.5_size=4_i=4_j=1",
-      "fgnet_bag_wr=0.5_size=4_i=4_j=2",
-      "fgnet_bag_wr=0.5_size=4_i=4_j=3",
-      "fgnet_bag_wr=0.5_size=4_i=4_j=4",
-  ],
-  "batch_size": [1],
-  "learning_rate": [0.01, 0.001, 0.0001],
-  "epochs": [100],
-  "pooling_mode": ["max", "mean"],
-  "early_stopping": [False],
+    "ordinal_method": [
+        OrdinalType.CORAL, 
+        OrdinalType.CORN
+        OrdinalType.CLM_QWK_LOGIT,
+        OrdinalType.CLM_QWK_PROBIT,
+        OrdinalType.CLM_QWK_CLOGLOG,
+    ],
+    "mil_pool_combo": [
+        [MILType.CAP_MI_NET, "max"],
+        [MILType.CAP_MI_NET, "mean"],
+        [MILType.MI_NET, "max"],
+        [MILType.MI_NET, "mean"],
+        [MILType.CAP_MI_NET_DS, "max"],
+        [MILType.CAP_MI_NET_DS, "mean"],
+        [MILType.MI_ATTENTION, None],
+        [MILType.MI_GATED_ATTENTION, None],
+    ],
 }
+
+# for fgnet-1.0.1; fgnet-1.0.2; fgnet-1.0.3; fgnet-1.0.4; 
 {
-  "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
-  "mil_method": [MILType.MI_ATTENTION, MILType.MI_GATED_ATTENTION],
-  "data_set_type": [DataSetType.FGNET],
-  "data_set_name": [
-      <same as above>
-  ],
-  "batch_size": [1],
-  "learning_rate": [0.01, 0.001, 0.0001],
-  "epochs": [100],
-  "pooling_mode": [None],
-  "early_stopping": [False],
+    "data_set_type": [DataSetType.FGNET],
+    "data_set_name": [
+        "fgnet_bag_wr=0.5_size=4_i=0_j=0",
+        "fgnet_bag_wr=0.5_size=4_i=0_j=1",
+        "fgnet_bag_wr=0.5_size=4_i=0_j=2",
+        "fgnet_bag_wr=0.5_size=4_i=0_j=3",
+        "fgnet_bag_wr=0.5_size=4_i=0_j=4",
+        "fgnet_bag_wr=0.5_size=4_i=1_j=0",
+        "fgnet_bag_wr=0.5_size=4_i=1_j=1",
+        "fgnet_bag_wr=0.5_size=4_i=1_j=2",
+        "fgnet_bag_wr=0.5_size=4_i=1_j=3",
+        "fgnet_bag_wr=0.5_size=4_i=1_j=4",
+        "fgnet_bag_wr=0.5_size=4_i=2_j=0",
+        "fgnet_bag_wr=0.5_size=4_i=2_j=1",
+        "fgnet_bag_wr=0.5_size=4_i=2_j=2",
+        "fgnet_bag_wr=0.5_size=4_i=2_j=3",
+        "fgnet_bag_wr=0.5_size=4_i=2_j=4",
+        "fgnet_bag_wr=0.5_size=4_i=3_j=0",
+        "fgnet_bag_wr=0.5_size=4_i=3_j=1",
+        "fgnet_bag_wr=0.5_size=4_i=3_j=2",
+        "fgnet_bag_wr=0.5_size=4_i=3_j=3",
+        "fgnet_bag_wr=0.5_size=4_i=3_j=4",
+        "fgnet_bag_wr=0.5_size=4_i=4_j=0",
+        "fgnet_bag_wr=0.5_size=4_i=4_j=1",
+        "fgnet_bag_wr=0.5_size=4_i=4_j=2",
+        "fgnet_bag_wr=0.5_size=4_i=4_j=3",
+        "fgnet_bag_wr=0.5_size=4_i=4_j=4",
+    ],
+    "batch_size": [1],
+    "learning_rate": [0.01, 0.001, 0.0001],
+    "epochs": [100],
+    "early_stopping": [False],
+}
+
+# for bcnb-3.0.1; bcnb-3.0.2
+{
+    "data_set_type": [DataSetType.BCNB_ALN],
+    "data_set_name": [
+        "bcnb_aln_i=0",
+        "bcnb_aln_i=1",
+        "bcnb_aln_i=2",
+        "bcnb_aln_i=3",
+        "bcnb_aln_i=4",
+    ],
+    "batch_size": [1],
+    "learning_rate": [0.001, 0.0001, 0.00001],
+    "epochs": [50],
+    "early_stopping": [False],
+}
+
+# for amrev-4.0.1
+{
+    "data_set_type": [DataSetType.AMREV_TV],
+    "data_set_name": [
+        "amrev_TVs_i=0",
+        "amrev_TVs_i=1",
+        "amrev_TVs_i=2",
+        "amrev_TVs_i=3",
+        "amrev_TVs_i=4",
+        "amrev_TVs_i=5",
+        "amrev_TVs_i=6",
+        "amrev_TVs_i=7",
+        "amrev_TVs_i=8",
+        "amrev_TVs_i=9",
+    ],
+    "batch_size": [1],
+    "learning_rate": [0.001, 0.0001, 0.00001],
+    "epochs": [50],
+    "early_stopping": [False],
 }
 ```
 
@@ -94,8 +140,9 @@ Showing results from the following experiments: `r exp_list`
 ### Anova modeling
 
 ```{r}
-# Fit models 
+#| message: false
 
+# Fit models 
 
 # Use weights to balance the data by data set type
 mod_weight <- df_metrics %>% 
@@ -109,8 +156,9 @@ mod_weight <- df_metrics %>%
 models <- 
   expand_grid(
     outcome = c("mae", "acc", "rmse"),
-    predictors = c("ordinal_method*mil_pool_combo + (1 | data_set_name) + learning_rate"),
-    # predictors = c("ordinal_method*mil_method + data_set_type + (1 | data_set_name) + pooling_mode + learning_rate"),
+    # predictors = c("ordinal_method*mil_pool_combo + (1 | data_set_name) + learning_rate"),
+    # predictors = c("ordinal_method*mil_pool_combo + data_set_type + (1 | data_set_name) + learning_rate"),
+    predictors = c("(ordinal_method + mil_pool_combo + data_set_type)^3 + (1 | data_set_name) + learning_rate"),
     exp_list = list(exp_list)
   ) %>% 
   rowwise() %>% 
@@ -120,10 +168,30 @@ models <-
     formula = list(as.formula(glue("{outcome} ~ {predictors}"))),
     fit = list(lmer(formula, df, weights = w)),
     aov2 = list(car::Anova(fit, type = 2)),
-    aov3 = list(car::Anova(fit, type = 3))
+    aov3 = list(car::Anova(fit, type = 3)),
+    emmean_or = list(emmeans(fit, data = df, specs = c("ordinal_method"))),
+    emmean_mil = list(emmeans(fit, data = df, specs = c("mil_pool_combo")))
   )
 
 ```
+
+```{r}
+# Create version of `df_metrics` with key variables ordered by their emmeans.
+# NOTE: this may be misleading due to interactions, but it helps in visualization
+order_mil <- models$emmean_mil[[1]] %>% as.data.frame() %>% 
+  arrange(emmean) %>% pull(mil_pool_combo) %>% as.character()
+
+order_or <- models$emmean_or[[1]] %>% as.data.frame() %>% 
+  arrange(emmean) %>% pull(ordinal_method) %>% as.character()
+
+df_metrics_o <- df_metrics %>% 
+  mutate(
+    mil_pool_combo = fct_relevel(mil_pool_combo, order_mil),
+    ordinal_method = fct_relevel(ordinal_method, order_or)
+  )
+```
+
+
 
 From this experiment, the ordinal method, pooling mode, and interaction between ordinal method and MIL method show up as significant factors in the model
 
@@ -143,7 +211,7 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
     # geom_violin(width = 0.5, draw_quantiles = c(0.25, 0.5, 0.75)) + 
     geom_boxplot(width = 0.5) + 
     stat_summary(geom = "point", fun = mean, size = 3) +
-    facet_wrap(facets, scales="free") + 
+    facet_wrap(facets, scales="free_x") + 
     theme_bw() +
     coord_flip()
 }
@@ -152,7 +220,8 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
 ```{r}
 #| label: fig-1f-boxplot-mae-ordinal
 #| fig-cap: Main single factor effects with MAE outcome
-#| fig-height: 6
+#| fig-height: 8
+#| fig-width: 12
 plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_set_type") + 
   plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "mae", facets = "data_set_type") +
   plot_layout(ncol = 1, heights = c(1, 2))
@@ -161,9 +230,10 @@ plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_se
 ```{r}
 #| label: fig-1f-boxplot-acc-ordinal
 #| fig-cap: Main single factor effects with accuracy outcome
-#| fig-height: 6
+#| fig-height: 8
+#| fig-width: 12
 plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_set_type") + 
-  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "mae", facets = "data_set_type") +
+  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "acc", facets = "data_set_type") +
   plot_layout(ncol = 1, heights = c(1, 2))
 ```
 
@@ -174,7 +244,7 @@ plot_two_factors <- function(
     exps, 
     factors = c("ordinal_method", "mil_pool_combo"),
     metric = "mae", 
-    facets = NULL) {
+    facets = NULL, ...) {
   
   df %>% 
     filter(experiment %in% exps) %>% 
@@ -182,34 +252,38 @@ plot_two_factors <- function(
       x = as.name(factors[1]), 
       y = as.name(metric), 
       color = as.name(factors[2])
+      # shape = as.name(factors[1])
     )) +
     geom_boxplot() +
     stat_summary(geom = "point", 
                  position = position_dodge2(width = 0.75),
-                 fun = mean, size = 3) +
-    facet_wrap(facets, scales="free") + 
+                 fun = mean, size = 3, shape = 3) +
+    facet_wrap(facets, scales="free_x", ...) + 
     scale_color_brewer(palette = "Dark2", na.value = "black") +
-    theme_bw()
+    theme_bw() + 
+    guides(shape = "none") + 
+    theme(legend.position = "bottom") + 
+    coord_flip()
 }
 ```
 
 ```{r}
 #| label: fig-2f-boxplot-mae-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with MAE outcome
-#| fig-width: 12
-plot_two_factors(df_metrics, exp_list, metric = "mae", facets = "data_set_type")
+#| fig-height: 8
+plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type") 
 ```
 
 ```{r}
 #| label: fig-2f-boxplot-acc-mil_ordinal
-#| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome
-#| fig-width: 12
-plot_two_factors(df_metrics, exp_list, metric = "acc", facets = "data_set_type")
+#| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome. 
+#| fig-height: 8
+plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type") 
 ```
 
 ```{r}
-plot_two_factors(df_metrics, exp_list, factors = c("mil_method", "pooling_mode"), metric = "mae", facets = "data_set_type") + 
-  coord_flip()
+#| fig-height: 5
+plot_two_factors(df_metrics, exp_list, factors = c("mil_method", "pooling_mode"), metric = "mae", facets = "data_set_type") 
 ```
 
 
@@ -237,6 +311,7 @@ plot_interaction <- function(
 ```
 
 ```{r}
+#| eval: false
 #| label: fig-interaction-mae-1.0.1
 #| fig-cap: Interaction plot between MIL and Ordinal method with MAE outcome
 #| warning: false
@@ -246,6 +321,7 @@ plot_interaction(df_metrics, exp_list, metric = "mae") +
 ```
 
 ```{r}
+#| eval: false
 #| label: fig-interaction-acc-1.0.1
 #| fig-cap: Interaction plot between MIL and Ordinal method with accuracy outcome
 #| warning: false
@@ -254,6 +330,7 @@ plot_interaction(df_metrics, exp_list, metric = "acc") +
 ```
 
 ```{r}
+#| eval: false
 #| label: fig-interaction-rmse-1.0.1
 #| fig-cap: Interaction plot between MIL and Ordinal method with RMSE outcome
 #| warning: false
@@ -276,15 +353,18 @@ plot_training_progression <- function(df, exps, metric, group, alpha = 0.1) {
     )) + 
     geom_line(alpha = alpha) +
     scale_y_log10() +
-    scale_color_brewer(name = NULL, palette = "Paired") + 
+    # scale_color_brewer(name = NULL, palette = "Paired") + 
     guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
-    theme_minimal() 
+    theme_minimal() +
+    labs(color = "") +
+    theme(legend.position = "bottom")
 }
 ```
 
 ```{r}
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"), 
-                          loss, paste0(mil_method, " ", ordinal_method))
+plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4"), 
+                          loss, group = mil_pool_combo) +
+  facet_wrap(~ordinal_method) 
 ```
 
 Observations:
@@ -297,30 +377,55 @@ Observations:
 
 ```{r}
 #| warning: false
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"),  
-                          mean_absolute_error_labels, paste0(ordinal_method, " ", mil_method))
+plot_training_progression(
+  df_train_prog, 
+  c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"), 
+  mean_absolute_error_labels,
+  group = mil_pool_combo
+) +
+  facet_wrap(~ordinal_method) 
 ```
 
-```{r}
-#| fig-width: 8
-#| fig-height: 6
-plot_training_progression(df_train_prog, c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3"),
-                          val_loss, paste0(ordinal_method, " ", mil_method)) + 
-  facet_wrap(facets = vars(ordinal_method, mil_method))
 
-```
-
-The above plot (although it is noisy) indicates to me that the model isn't overfitting. The validation loss is mostly constant throughout the epochs.
 
 ```{r}
 #| eval: false
-plot_training_progression(df_train_prog, c("aes-2.0.1"), 
-                          loss, paste0(mil_method, " ", ordinal_method),
-                          alpha = 0.5)
+plot_training_progression(df_train_prog, c("bcnb-3.0.1", "bcnb-3.0.2"), 
+                          loss, group = mil_pool_combo) +
+  facet_wrap(~ordinal_method) 
+```
+
+
+```{r}
+df_train_prog %>% 
+  filter(ordinal_method %ni% c("CORAL", "CORN")) %>% 
+  plot_training_progression(
+    c("amrev-4.0.1"), 
+    loss, 
+    group = mil_pool_combo
+  ) +
+  facet_wrap(~ordinal_method)
 ```
 
 ```{r}
+df_train_prog %>% 
+  filter(ordinal_method %in% c("CORAL", "CORN")) %>% 
+  plot_training_progression(
+    c("amrev-4.0.1"), 
+    val_loss, 
+    group = mil_pool_combo
+  ) +
+  facet_wrap(~ordinal_method)
+```
+
+
+
+
+
+```{r}
 #| eval: false
+
+# Early stopping summary, not currently used
 exp_list <- c("aes-2.0.1")
 df_train_prog %>% 
   filter(experiment %in% exp_list) %>% 
@@ -341,17 +446,19 @@ df_train_prog %>%
 
 ## Appendix
 
-Linear model diagnostics are reasonable. See some deviations from normality and possible heterogeneity in the residuals. Accuracy model is the model reliable in this.
+<!-- Linear model diagnostics are reasonable. See some deviations from normality and possible heterogeneity in the residuals. Accuracy model is the model reliable in this.-->
+
+Noticeable heteroskedacity in mae; rmse model; major assumption violation for accuracy model
 
 ```{r}
 walk(models$fit, ~print(plot(.x)))
 
 ```
 
-Correlation between number of unique test predictions and outcome metrics
+Correlation between number of unique test predictions and outcome metrics. Notice that generally the results are better when the models learn more classes (which is a good thing). Amrev so far does the best in learning multiple classes, BCNB rarely learns all 3...
 
 ```{r}
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "aes-2.0.1", "aes-2.0.2")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1")
 df_metrics %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, mae, group = n_pred)) + 
@@ -362,24 +469,10 @@ df_metrics %>%
 df_metrics %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, acc, group = n_pred)) + 
-  geom_boxplot() + 
+  geom_boxplot(varwidth = TRUE) + 
   facet_wrap(~data_set_type, scales = "free") +
   theme_bw()
 
 ```
 
-```{r}
 
-files_of_interest <- 
-  df_metrics %>% 
-  filter(experiment %in% c("aes-2.0.1", "aes-2.0.2")) %>% 
-  filter(n_pred > 1) %>% 
-  pull(file)
-
-files_of_interest <- str_replace_all(files_of_interest, ".csv", "_training\\.log")
-
-df_train_prog %>% 
-  filter(file %in% files_of_interest) %>% 
-  group_by(file) %>% 
-  summarize(n_epoch = max(epoch)) 
-```
