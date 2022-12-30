@@ -8,6 +8,7 @@ class DataSetType(Enum):
     BCNB_ALN = "bcnb"
     AMREV_TV = "amrev_tv"
     IMDB = "imdb"
+    AFAD = "afad"
 
 
 DATASET_PARAM = {
@@ -94,6 +95,39 @@ DATASET_PARAM = {
         },
         "augmentation_args": {},
     },
+    DataSetType.AFAD: {
+        "dir": "datasets/afad/",
+        "splits_dir": "splits_bag/",
+        "x_col": "img_name",
+        "y_col": "age",
+        "img_size": (128, 128, 3),
+        "n_classes": 13,
+        "class_indices": {
+            "18": 0,
+            "19": 1,
+            "20": 2,
+            "21": 3,
+            "22": 4,
+            "23": 5,
+            "24": 6,
+            "25": 7,
+            "26": 8,
+            "27": 9,
+            "28": 10,
+            "29": 11,
+            "30": 12,
+        },
+        "augmentation_args": {
+            "horizontal_flip": True,
+            "crop_range": 0.0625,
+            "contrast_lower": 1,
+            "contrast_upper": 1,
+            "brightness_delta": 0,
+            "hue_delta": 0,
+            "quality_min": 100,
+            "quality_max": 100,
+        },
+    },
 }
 
 
@@ -110,8 +144,8 @@ class DataSet:
     name : str 
         The name of the dataset.
     params : dict
-        The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', and 
-        'augmentation_args'. 
+        The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', 'n_classes',
+        'class_indices', and 'augmentation_args'. 
     train : str
         The file that describes the training information. 
     test : str

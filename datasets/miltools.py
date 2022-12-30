@@ -6,8 +6,6 @@ class MILDataSetConverter(object):
     """
     An object that can convert a data set to a MIL data set. The several options 
     are wrapped into a single object that can be used. 
-
-    TODO: investigate why so slow on the aes data set. 
     """
 
     def __init__(
@@ -18,10 +16,8 @@ class MILDataSetConverter(object):
         self.convert_type = convert_type
         self.shuffle = shuffle
 
-    @property
-    def class_indices(self):
-        classes = np.unique(self.df[self.y_col])
-        return dict(zip(classes, np.arange(len(classes))))
+        classes = np.unique(self.df[y_col])
+        self.class_indices = dict(zip(classes, np.arange(len(classes))))
 
     def convert(self, bag_size: int, wr: float = 1.0, seed: int = 0) -> pd.DataFrame:
         """

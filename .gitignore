@@ -146,6 +146,7 @@ datasets/amrev/reviews/
 datasets/amrev/splits_bag/
 datasets/imdb/reviews/
 datasets/imdb/splits_bag/
+datasets/afad/images/
 
 # mat data files
 *.mat

@@ -98,8 +98,11 @@ class ModelArchitecture:
             return Input(shape=(None,) + self.data_set_img_size, batch_size=1)
 
     def base_layers(self, layer: tf.keras.layers.Layer) -> tf.keras.layers.Layer:
-        if self.data_set_type in [DataSetType.FGNET, DataSetType.BCNB_ALN]:
-
+        if self.data_set_type in [
+            DataSetType.FGNET,
+            DataSetType.BCNB_ALN,
+            DataSetType.AFAD,
+        ]:
             # Small-ish Residual Network from Vargas, Gutierrez, Hervas-Matrinez (2020) Neurocomputing
             x1 = BagWise(
                 Conv2D(32, (7, 7), strides=2, padding="same", activation="relu")
