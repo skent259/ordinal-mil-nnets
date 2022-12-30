@@ -98,7 +98,7 @@ DATASET_PARAM = {
     DataSetType.AFAD: {
         "dir": "datasets/afad/",
         "splits_dir": "splits_bag/",
-        "x_col": "img_name",
+        "x_col": "path",
         "y_col": "age",
         "img_size": (128, 128, 3),
         "n_classes": 13,
