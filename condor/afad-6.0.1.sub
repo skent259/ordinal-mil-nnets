@@ -1,0 +1,30 @@
+# Condor submission file for Python
+
+# EXECUTION FILE
+universe    =   vanilla
+batch_name  =   afad-6.0.1
+initialdir  =   /home/spkent/ordinal-mil-nnets
+
+executable  =   condor/condor_main.sh
+arguments   =   afad 6.0.1 $(Step) results/afad/
+# usage: condor_main.sh NAME VERSION I OUTPUT_DIR
+
+# FILE TRANSFER
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = condor/condor_main.py, experiment/params/experiment-afad-6.0.1.csv
+
+# RESOURCES
+request_cpus = 1
+request_memory = 32GB
+request_disk = 32GB
+requirements = (Target.HasCHTCStaging == true)
++LongJob = TRUE
+# requirements = (HasChtcSoftware == true)
+
+# OUTPUT AND LOGGING
+output		=	condor/afad-6.0.1/out/afad-6.0.1_i=$(Step).out
+error       =   condor/afad-6.0.1/err/afad-6.0.1_i=$(Step).err
+log         =   condor/afad-6.0.1/log/afad-6.0.1_i=$(Step).log
+
+queue 1200
