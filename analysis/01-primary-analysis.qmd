@@ -27,7 +27,7 @@ df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
 # exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4")
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1")
 
 `%ni%` <- Negate(`%in%`)
 
@@ -211,7 +211,7 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
     # geom_violin(width = 0.5, draw_quantiles = c(0.25, 0.5, 0.75)) + 
     geom_boxplot(width = 0.5) + 
     stat_summary(geom = "point", fun = mean, size = 3) +
-    facet_wrap(facets, scales="free_x") + 
+    facet_wrap(facets, scales="free_x", nrow = 1) + 
     theme_bw() +
     coord_flip()
 }
@@ -271,15 +271,17 @@ plot_two_factors <- function(
 #| label: fig-2f-boxplot-mae-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with MAE outcome
 #| fig-height: 8
-plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type") 
+plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type", nrow=1) 
 ```
 
 ```{r}
 #| label: fig-2f-boxplot-acc-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome. 
 #| fig-height: 8
-plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type") 
+plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type", nrow=1) 
 ```
+
+Note that for IMDB, the results flip---low MAE usually corresponds to low accuracy. The others are largely consistent.
 
 ```{r}
 #| fig-height: 5
@@ -419,6 +421,32 @@ df_train_prog %>%
 ```
 
 
+```{r}
+p <- df_train_prog %>% 
+  filter(ordinal_method %in% c("CORAL", "CORN")) %>%
+  plot_training_progression(
+    c("imdb-5.0.1"), 
+    loss, 
+    group = mil_pool_combo
+  ) +
+  facet_wrap(~ordinal_method, scales = "free_y")
+
+p
+p %+% aes(y = val_loss)
+
+
+p <- df_train_prog %>% 
+  filter(ordinal_method %in% c("CORN")) %>%
+  plot_training_progression(
+    c("imdb-5.0.1"), 
+    val_loss, 
+    group = mil_pool_combo
+  ) +
+  facet_wrap(~ordinal_method, scales = "free_y")
+
+plotly::ggplotly(p)
+
+```
 
 
 
@@ -426,7 +454,7 @@ df_train_prog %>%
 #| eval: false
 
 # Early stopping summary, not currently used
-exp_list <- c("aes-2.0.1")
+exp_list <- c("afad-6.0.1")
 df_train_prog %>% 
   filter(experiment %in% exp_list) %>% 
   group_by(file) %>% 
@@ -458,7 +486,7 @@ walk(models$fit, ~print(plot(.x)))
 Correlation between number of unique test predictions and outcome metrics. Notice that generally the results are better when the models learn more classes (which is a good thing). Amrev so far does the best in learning multiple classes, BCNB rarely learns all 3...
 
 ```{r}
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1")
 df_metrics %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, mae, group = n_pred)) + 
@@ -475,4 +503,20 @@ df_metrics %>%
 
 ```
 
+
+**Why do the results flip for the IMDB results?** While not universally true, the trends below show that most of the high accuracy models have a small number of predictions, and likely aren't the best models to use. 
+
+```{r}
+p <- df_metrics %>% 
+  filter(experiment %in% exp_list) %>% 
+  ggplot(aes(acc, mae, color = n_pred)) + 
+  geom_point(alpha = 0.5) +
+  facet_wrap(~data_set_type) +
+  scale_color_viridis_c(option = "magma") + 
+  theme_bw()
+
+print(p)
+p %+% filter(df_metrics, experiment == "imdb-5.0.1") 
+
+```
 

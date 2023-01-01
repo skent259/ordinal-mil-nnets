@@ -173,3 +173,6 @@ tfhub/
 
 # NLTK data files
 nltk_data/
+
+
+.DS_Store
