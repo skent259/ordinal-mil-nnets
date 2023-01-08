@@ -25,7 +25,7 @@ df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
 exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", 
-              "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1")
+              "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1", "afad-6.0.1")
 
 `%ni%` <- Negate(`%in%`)
 

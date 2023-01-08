@@ -26,8 +26,7 @@ library(emmeans)
 df_metrics <- read_csv(here("results/test_metrics_from_experiments.csv"))
 df_train_prog <- read_csv(here("results/train-val_progression_from_experiments.csv"))
 
-# exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4")
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1", "afad-6.0.1")
 
 `%ni%` <- Negate(`%in%`)
 
@@ -131,6 +130,48 @@ Factors used:
     "epochs": [50],
     "early_stopping": [False],
 }
+
+# for imdb-5.0.1
+{
+    "data_set_type": [DataSetType.IMDB],
+    "data_set_name": [
+        "imdb_i=0",
+        "imdb_i=1",
+        "imdb_i=2",
+        "imdb_i=3",
+        "imdb_i=4",
+        "imdb_i=5",
+        "imdb_i=6",
+        "imdb_i=7",
+        "imdb_i=8",
+        "imdb_i=9",
+    ],
+    "batch_size": [1],
+    "learning_rate": [0.001, 0.0001, 0.00001],
+    "epochs": [50],
+    "early_stopping": [False],
+}
+
+# for afad-6.0.1
+{
+    "data_set_type": [DataSetType.AFAD],
+    "data_set_name": [
+        "afad_bag_wr=0.5_size=4_i=0_j=0",
+        "afad_bag_wr=0.5_size=4_i=0_j=1",
+        "afad_bag_wr=0.5_size=4_i=0_j=2",
+        "afad_bag_wr=0.5_size=4_i=0_j=3",
+        "afad_bag_wr=0.5_size=4_i=0_j=4",
+        "afad_bag_wr=0.5_size=4_i=1_j=0",
+        "afad_bag_wr=0.5_size=4_i=1_j=1",
+        "afad_bag_wr=0.5_size=4_i=1_j=2",
+        "afad_bag_wr=0.5_size=4_i=1_j=3",
+        "afad_bag_wr=0.5_size=4_i=1_j=4",
+    ],
+    "batch_size": [1],
+    "learning_rate": [0.001, 0.0001, 0.00001],
+    "epochs": [50],
+    "early_stopping": [True],
+}
 ```
 
 ## Results
@@ -201,6 +242,11 @@ walk(models$aov2, print)
 ```
 
 ```{r}
+print(mod_weight)
+```
+
+
+```{r}
 plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
   df %>% 
     filter(experiment %in% exps) %>% 
@@ -209,7 +255,7 @@ plot_one_factor <- function(df, exps, factor, metric, facets = NULL) {
       y = as.name(metric)
     )) +
     # geom_violin(width = 0.5, draw_quantiles = c(0.25, 0.5, 0.75)) + 
-    geom_boxplot(width = 0.5) + 
+    geom_boxplot(width = 0.5, outlier.alpha = 0.4) + 
     stat_summary(geom = "point", fun = mean, size = 3) +
     facet_wrap(facets, scales="free_x", nrow = 1) + 
     theme_bw() +
@@ -271,14 +317,16 @@ plot_two_factors <- function(
 #| label: fig-2f-boxplot-mae-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with MAE outcome
 #| fig-height: 8
-plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type", nrow=1) 
+plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type", nrow=1) +
+  labs(color = NULL)
 ```
 
 ```{r}
 #| label: fig-2f-boxplot-acc-mil_ordinal
 #| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome. 
 #| fig-height: 8
-plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type", nrow=1) 
+plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type", nrow=1) +
+  labs(color = NULL)
 ```
 
 Note that for IMDB, the results flip---low MAE usually corresponds to low accuracy. The others are largely consistent.
@@ -287,6 +335,57 @@ Note that for IMDB, the results flip---low MAE usually corresponds to low accura
 #| fig-height: 5
 plot_two_factors(df_metrics, exp_list, factors = c("mil_method", "pooling_mode"), metric = "mae", facets = "data_set_type") 
 ```
+
+
+#### Tukey-adjusted comparisons
+
+**Ordinal method**
+
+For MAE and RMSE, we can distinguish that CORN is better than CORAL averaged over MIL and Data Set levels (and ignoring interactions). For Accuracy, we cannot make the distinction although on average the emmean for CORN is lower than CORAL. Surprisingly, CLM_QWK_CLOGLOG is competitive in terms of Accuracy with CORN and CORAL (probably due to high accuracy in the BCNB and IMDB settings). 
+
+```{r}
+#| message: false
+
+walk2(
+  models$fit, models$outcome,
+  function(.x, .y) {
+    out <- emmeans(.x, list(pairwise ~ ordinal_method), adjust = "tukey", data = models$df[[1]])
+    
+    lev <- out[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
+    p <- plot(out, comparisons=TRUE) + 
+      scale_y_discrete(limits = lev) +
+      labs(
+        title = glue("Tukey EM mean plot for {str_to_upper(.y)}")
+      )
+    
+    print(p)
+  }
+)
+```
+
+
+**MIL-Pool method**
+
+```{r}
+#| message: false
+
+walk2(
+  models$fit, models$outcome,
+  function(.x, .y) {
+    out <- emmeans(.x, list(pairwise ~ mil_pool_combo), adjust = "tukey", data = models$df[[1]])
+    
+    lev <- out[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
+    p <- plot(out, comparisons=TRUE) + 
+      scale_y_discrete(limits = lev) +
+      labs(
+        title = glue("Tukey EM mean plot for {str_to_upper(.y)}")
+      )
+    
+    print(p)
+  }
+)
+```
+
 
 
 ```{r}
@@ -359,7 +458,10 @@ plot_training_progression <- function(df, exps, metric, group, alpha = 0.1) {
     guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
     theme_minimal() +
     labs(color = "") +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom") +
+    labs(
+      title = glue("Training: {glue_collapse(exps, ', ')}")
+    )
 }
 ```
 
@@ -435,25 +537,23 @@ p
 p %+% aes(y = val_loss)
 
 
-p <- df_train_prog %>% 
-  filter(ordinal_method %in% c("CORN")) %>%
-  plot_training_progression(
-    c("imdb-5.0.1"), 
-    val_loss, 
-    group = mil_pool_combo
-  ) +
-  facet_wrap(~ordinal_method, scales = "free_y")
-
-plotly::ggplotly(p)
+# p <- df_train_prog %>% 
+#   filter(ordinal_method %in% c("CORN")) %>%
+#   plot_training_progression(
+#     c("imdb-5.0.1"), 
+#     val_loss, 
+#     group = mil_pool_combo
+#   ) +
+#   facet_wrap(~ordinal_method, scales = "free_y")
+# 
+# plotly::ggplotly(p)
 
 ```
 
 
 
 ```{r}
-#| eval: false
 
-# Early stopping summary, not currently used
 exp_list <- c("afad-6.0.1")
 df_train_prog %>% 
   filter(experiment %in% exp_list) %>% 
@@ -486,15 +586,17 @@ walk(models$fit, ~print(plot(.x)))
 Correlation between number of unique test predictions and outcome metrics. Notice that generally the results are better when the models learn more classes (which is a good thing). Amrev so far does the best in learning multiple classes, BCNB rarely learns all 3...
 
 ```{r}
-exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1")
+exp_list <- c("fgnet-1.0.1", "fgnet-1.0.2", "fgnet-1.0.3", "fgnet-1.0.4", "bcnb-3.0.1", "bcnb-3.0.2", "amrev-4.0.1", "imdb-5.0.1", "afad-6.0.1")
 df_metrics %>% 
+  # filter(ordinal_method %in% c("CORN", "CORAL")) %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, mae, group = n_pred)) + 
-  geom_boxplot() + 
+  geom_boxplot(varwidth = TRUE) + 
   facet_wrap(~data_set_type, scales = "free") +
   theme_bw()
 
 df_metrics %>% 
+  # filter(ordinal_method %in% c("CORN", "CORAL")) %>% 
   filter(experiment %in% exp_list) %>% 
   ggplot(aes(n_pred, acc, group = n_pred)) + 
   geom_boxplot(varwidth = TRUE) + 
