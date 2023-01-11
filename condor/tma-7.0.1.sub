@@ -5,9 +5,9 @@ universe    =   vanilla
 batch_name  =   tma-7.0.1
 initialdir  =   /home/spkent/ordinal-mil-nnets
 
-executable  =   condor/condor_main.sh
+executable  =   condor/tma-condor.sh
 arguments   =   tma 7.0.1 $(Step) results/tma/
-# usage: condor_main.sh NAME VERSION I OUTPUT_DIR
+# usage: tma-condor.sh NAME VERSION I OUTPUT_DIR
 
 # FILE TRANSFER
 should_transfer_files = YES
@@ -16,8 +16,8 @@ transfer_input_files = application/02-train-tma-7.0.1.py, application/params/exa
 
 # RESOURCES
 request_cpus = 1
-request_memory = 32GB
-request_disk = 32GB
+request_memory = 24GB
+request_disk = 24GB
 requirements = (Target.HasCHTCStaging == true)
 +LongJob = TRUE
 # requirements = (HasChtcSoftware == true)

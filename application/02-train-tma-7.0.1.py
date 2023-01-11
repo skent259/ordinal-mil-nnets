@@ -1,5 +1,6 @@
 import argparse
 import sys
+from itertools import product
 from typing import Dict, List
 
 [sys.path.append(i) for i in [".", ".."]]  # need to access datasets and models module
@@ -14,7 +15,6 @@ from tensorflow.keras import layers
 from tensorflow.keras.callbacks import CSVLogger
 
 from application.config import TMAConfig
-from experiment.paramtools import expand_grid
 from models.architecture import MILType, OrdinalType
 from models.generators import MILTabularDataGenerator
 from models.mil_attention.layer import mil_attention_layer
@@ -195,6 +195,11 @@ df = pd.read_csv(f"{data_dir}/tma_stage_imputations_1.0.csv")
 df_train, df_test = train_test_split_bagwise(df, bag_col=BAG_COL, train_size=0.8)
 
 ## List hyperparameters ------------------------------------------------------#
+
+def expand_grid(dictionary):
+    data = [row for row in product(*dictionary.values())]
+    return pd.DataFrame(data, columns=dictionary.keys())
+
 hyperparameters = {
     "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
     "learning_rate": [0.01, 0.0005, 0.00001],
