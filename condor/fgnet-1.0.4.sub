@@ -16,8 +16,8 @@ transfer_input_files = condor/condor_main.py, experiment/params/experiment-fgnet
 
 # RESOURCES
 request_cpus = 1
-request_memory = 32GB
-request_disk = 32GB
+request_memory = 28GB
+request_disk = 28GB
 requirements = (Target.HasCHTCStaging == true)
 # requirements = (HasChtcSoftware == true)
 
