@@ -62,6 +62,7 @@ class ModelArchitecture:
     data_set_img_size: Tuple[int]
     n_classes: int
     pooling_mode: str = "max"
+    learning_rate: float = 0.05
 
     def build(self):
         inputs = self.input_layer()
@@ -71,7 +72,7 @@ class ModelArchitecture:
         if self.mil_type is not MILType.CAP_MI_NET_DS:
             model = Model(inputs=inputs, outputs=last)
             model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
                 loss=self.ordinal_loss,
                 metrics=self.ordinal_metrics,
             )
@@ -79,11 +80,9 @@ class ModelArchitecture:
             out_names = [x.name.split("/", 1)[0] for x in last]  # hack-y way
             out_weights = [1.0 for _ in range(len(last) - 1)] + [0.0]
 
-            model = tf.keras.Model(
-                inputs=inputs, outputs=last, name="MI-net_corn_resnet"
-            )
+            model = tf.keras.Model(inputs=inputs, outputs=last, name="keras_model")
             model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
                 loss={i: self.ordinal_loss for i in out_names},
                 loss_weights={i: j for (i, j) in zip(out_names, out_weights)},
                 metrics=self.ordinal_metrics,

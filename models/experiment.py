@@ -67,6 +67,7 @@ class ExperimentConfig:
             data_set_img_size=self.data_set.params["img_size"],
             n_classes=self.data_set.params["n_classes"],
             pooling_mode=self.pooling_mode,
+            learning_rate=self.learning_rate,
         )
 
     @property
