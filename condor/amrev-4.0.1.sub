@@ -2,7 +2,7 @@
 
 # EXECUTION FILE
 universe    =   vanilla
-batch_name  =   amrev-4.0.1
+batch_name  =   amrev-4.0.1-re
 initialdir  =   /home/spkent/ordinal-mil-nnets
 
 executable  =   condor/condor_main.sh
@@ -16,15 +16,20 @@ transfer_input_files = condor/condor_main.py, experiment/params/experiment-amrev
 
 # RESOURCES
 request_cpus = 1
-request_memory = 21GB
-request_disk = 21GB
+request_memory = 30GB
+request_disk = 30GB
 requirements = (Target.HasCHTCStaging == true)
 +LongJob = TRUE
 # requirements = (HasChtcSoftware == true)
 
 # OUTPUT AND LOGGING
-output		=	condor/amrev-4.0.1/out/amrev-4.0.1_i=$(Step).out
-error       =   condor/amrev-4.0.1/err/amrev-4.0.1_i=$(Step).err
-log         =   condor/amrev-4.0.1/log/amrev-4.0.1_i=$(Step).log
+output		=	condor/amrev-4.0.1/out/amrev-4.0.1_i=re-$(Step).out
+error       =   condor/amrev-4.0.1/err/amrev-4.0.1_i=re-$(Step).err
+log         =   condor/amrev-4.0.1/log/amrev-4.0.1_i=re-$(Step).log
 
-queue 1200
+# queue 1200
+queue Step from (
+    437
+    440 
+    443
+)
