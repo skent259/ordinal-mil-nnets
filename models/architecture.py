@@ -53,7 +53,7 @@ class ModelArchitecture:
     Model architecture to be used by experiment methods
 
     NOTE: If MILType is MI_ATTENTION or MI_GATED_ATTENTION, pooling_mode will be ignored and the implicit structure is
-    close to that or CAP_MI_NET. 
+    close to that or CAP_MI_NET.
     """
 
     ordinal_type: OrdinalType
@@ -130,47 +130,6 @@ class ModelArchitecture:
                 ]
             else:
                 x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
-
-            return x_out
-
-        if self.data_set_type is DataSetType.AES:
-
-            # ResNet 34, as in Shi, Cao, and Raschka (2022)
-            # https://www.kaggle.com/datasets/pytorch/resnet34
-            x1 = BagWise(
-                Conv2D(64, (7, 7), strides=2, padding="same", activation="relu")
-            )(layer)
-            x1 = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x1)
-
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-
-            x2 = bagwise_residual_block(x1, 128, (3, 3), stride=2, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-
-            x3 = bagwise_residual_block(x2, 256, (3, 3), stride=2, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-
-            x4 = bagwise_residual_block(x3, 512, (3, 3), stride=2, nonlinearity="relu")
-            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
-            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
-
-            if self.mil_type is MILType.CAP_MI_NET_DS:
-                x_out = [
-                    BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
-                    for x in [x1, x2, x3, x4]
-                ]
-                x_out = [Dense(1000, activation="relu")(x) for x in x_out]
-            else:
-                x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
-                x_out = BagWise(Dense(1000, activation="relu"))(x_out)
 
             return x_out
 
@@ -330,4 +289,3 @@ class ModelArchitecture:
             OrdinalType.CLM_QWK_CLOGLOG: "accuracy",
         }
         return [metric[self.ordinal_type]]
-
