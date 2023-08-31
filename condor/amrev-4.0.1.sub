@@ -23,13 +23,8 @@ requirements = (Target.HasCHTCStaging == true)
 # requirements = (HasChtcSoftware == true)
 
 # OUTPUT AND LOGGING
-output		=	condor/amrev-4.0.1/out/amrev-4.0.1_i=re-$(Step).out
-error       =   condor/amrev-4.0.1/err/amrev-4.0.1_i=re-$(Step).err
-log         =   condor/amrev-4.0.1/log/amrev-4.0.1_i=re-$(Step).log
+output		=	condor/amrev-4.0.1/out/amrev-4.0.1_i=$(Step).out
+error       =   condor/amrev-4.0.1/err/amrev-4.0.1_i=$(Step).err
+log         =   condor/amrev-4.0.1/log/amrev-4.0.1_i=$(Step).log
 
-# queue 1200
-queue Step from (
-    437
-    440 
-    443
-)
+queue 1200
