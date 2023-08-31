@@ -1,7 +1,7 @@
 #!/bin/bash
 # NOTE: do not run from condor/, run from ./
 
-sim="afad-6.0.1"
+sim="bcnb-3.0.2"
 cd condor/$sim 
 
 # Record the total run time and any errors 

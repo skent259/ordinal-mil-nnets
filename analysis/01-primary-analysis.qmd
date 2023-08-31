@@ -180,6 +180,12 @@ Showing results from the following experiments: `r exp_list`
 
 ### Anova modeling
 
+Formula used: 
+``` r
+metric ~ (ordinal_method + mil_pool_combo + data_set_type)^3 + (1 | data_set_name) + learning_rate
+```
+
+
 ```{r}
 #| message: false
 
@@ -196,9 +202,7 @@ mod_weight <- df_metrics %>%
 
 models <- 
   expand_grid(
-    outcome = c("mae", "acc", "rmse"),
-    # predictors = c("ordinal_method*mil_pool_combo + (1 | data_set_name) + learning_rate"),
-    # predictors = c("ordinal_method*mil_pool_combo + data_set_type + (1 | data_set_name) + learning_rate"),
+    outcome = c("mae", "mzoe", "rmse", "acc"),
     predictors = c("(ordinal_method + mil_pool_combo + data_set_type)^3 + (1 | data_set_name) + learning_rate"),
     exp_list = list(exp_list)
   ) %>% 
@@ -211,8 +215,12 @@ models <-
     aov2 = list(car::Anova(fit, type = 2)),
     aov3 = list(car::Anova(fit, type = 3)),
     emmean_or = list(emmeans(fit, data = df, specs = c("ordinal_method"))),
-    emmean_mil = list(emmeans(fit, data = df, specs = c("mil_pool_combo")))
+    emmean_mil = list(emmeans(fit, data = df, specs = c("mil_pool_combo"))),
+    emmean_or_tukey = list(emmeans(fit, list(pairwise ~ ordinal_method), adjust = "tukey", data = df)),
+    emmean_mil_tukey = list(emmeans(fit, list(pairwise ~ mil_pool_combo), adjust = "tukey", data = df))
   )
+
+saveRDS(models, here("analysis/objects/models-01.rds"))
 
 ```
 
@@ -275,11 +283,11 @@ plot_one_factor(df_metrics, exp_list, "ordinal_method", "mae", facets = "data_se
 
 ```{r}
 #| label: fig-1f-boxplot-acc-ordinal
-#| fig-cap: Main single factor effects with accuracy outcome
+#| fig-cap: Main single factor effects with MZOE outcome
 #| fig-height: 8
 #| fig-width: 12
-plot_one_factor(df_metrics, exp_list, "ordinal_method", "acc", facets = "data_set_type") + 
-  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "acc", facets = "data_set_type") +
+plot_one_factor(df_metrics, exp_list, "ordinal_method", "mzoe", facets = "data_set_type") + 
+  plot_one_factor(df_metrics, exp_list, "mil_pool_combo", "mzoe", facets = "data_set_type") +
   plot_layout(ncol = 1, heights = c(1, 2))
 ```
 
@@ -323,9 +331,9 @@ plot_two_factors(df_metrics_o, exp_list, metric = "mae", facets = "data_set_type
 
 ```{r}
 #| label: fig-2f-boxplot-acc-mil_ordinal
-#| fig-cap: Two factor effects of MIL and Ordinal method with accuracy outcome. 
+#| fig-cap: Two factor effects of MIL and Ordinal method with MZOE outcome. 
 #| fig-height: 8
-plot_two_factors(df_metrics_o, exp_list, metric = "acc", facets = "data_set_type", nrow=1) +
+plot_two_factors(df_metrics_o, exp_list, metric = "mzoe", facets = "data_set_type", nrow=1) +
   labs(color = NULL)
 ```
 
@@ -347,16 +355,16 @@ For MAE and RMSE, we can distinguish that CORN is better than CORAL averaged ove
 #| message: false
 
 walk2(
-  models$fit, models$outcome,
+  models$emmean_or_tukey, models$outcome,
   function(.x, .y) {
-    out <- emmeans(.x, list(pairwise ~ ordinal_method), adjust = "tukey", data = models$df[[1]])
     
-    lev <- out[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
-    p <- plot(out, comparisons=TRUE) + 
-      scale_y_discrete(limits = lev) +
+    lev <- .x[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
+    p <- plot(.x, comparisons=TRUE) + 
+      scale_y_discrete(limits = rev(lev)) +
       labs(
         title = glue("Tukey EM mean plot for {str_to_upper(.y)}")
-      )
+      ) +
+      theme_light()
     
     print(p)
   }
@@ -370,16 +378,16 @@ walk2(
 #| message: false
 
 walk2(
-  models$fit, models$outcome,
+  models$emmean_mil_tukey, models$outcome,
   function(.x, .y) {
-    out <- emmeans(.x, list(pairwise ~ mil_pool_combo), adjust = "tukey", data = models$df[[1]])
     
-    lev <- out[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
-    p <- plot(out, comparisons=TRUE) + 
-      scale_y_discrete(limits = lev) +
+    lev <- .x[[1]] %>% as_tibble() %>% arrange(emmean) %>% pull(1)
+    p <- plot(.x, comparisons=TRUE) + 
+      scale_y_discrete(limits = rev(lev)) +
       labs(
         title = glue("Tukey EM mean plot for {str_to_upper(.y)}")
-      )
+      ) +
+      theme_light()
     
     print(p)
   }

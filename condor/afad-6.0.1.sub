@@ -16,8 +16,8 @@ transfer_input_files = condor/condor_main.py, experiment/params/experiment-afad-
 
 # RESOURCES
 request_cpus = 1
-request_memory = 32GB
-request_disk = 32GB
+request_memory = 22GB
+request_disk = 22GB
 requirements = (Target.HasCHTCStaging == true)
 +LongJob = TRUE
 # requirements = (HasChtcSoftware == true)

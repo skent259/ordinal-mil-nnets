@@ -1,0 +1,90 @@
+---
+title: "03 - Tables for paper"
+format: 
+  html:
+    fig-width: 8
+    fig-height: 4
+    code-fold: true
+editor: visual
+---
+
+```{r, setup}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(here)
+library(glue)
+library(knitr)
+library(kableExtra)
+
+kable_standard <- function(...) {
+    kable(booktabs = TRUE, linesep = "", ...) %>% 
+        kable_styling(full_width = FALSE)
+}
+```
+
+```{r, objects}
+models <- readRDS(here("analysis/objects/models-01.rds"))
+
+```
+
+## ANOVA Tables
+
+```{r}
+metrics <- models$outcome
+
+make_table_aov <- function(models, metric = "mae", ...) {
+  # NOTE: use `format = "latex"` in `...` to get latex output
+  
+  replace_spec <- tribble(
+    ~old, ~new,
+    "ordinal_method", "(Ordinal)",
+    "mil_pool_combo", "(MIL+pooling)",
+    "data_set_type", "(Data)",
+    "learning_rate", "(Learning rate)",
+    ":", " × "
+  )
+  
+  tmp <- models$aov2[[which(metrics == metric)]]
+  
+  for (i in seq_len(nrow(replace_spec))) {
+    old <- replace_spec$old[i]
+    new <- replace_spec$new[i]
+    rownames(tmp) <- str_replace_all(rownames(tmp), old, new)
+  }
+  
+  tmp %>% 
+    mutate(
+      `Pr(>Chisq)` = scales::pvalue(`Pr(>Chisq)`, accuracy = 0.000001),
+      p_om = pchisq(Chisq, Df, log.p = TRUE, lower.tail = FALSE) / log(10), #log_a(b) = log_x(a) / log_x(b)
+      p_om = floor(p_om)
+    ) %>% 
+    rownames_to_column() %>% 
+    kable_standard(
+      digits = 1,
+      col.names = c("Factor", "Wald $\\chi^2$", "Df", "P-value", "P OoM"),
+      align = "lrrrr", 
+      caption = glue("Analysis of Deviance Type II summary for {str_to_upper(metric)} outcome"),
+      ...
+    ) 
+}
+
+make_table_aov(models, "mae")
+make_table_aov(models, "mzoe")
+make_table_aov(models, "rmse")
+
+```
+
+```{r, 3-anova-mae}
+cat(make_table_aov(models, "mae", format = "latex", escape = FALSE))
+```
+
+```{r, 3-anova-mzoe}
+cat(make_table_aov(models, "mzoe", format = "latex", escape = FALSE))
+```
+
+```{r, 3-anova-rmse}
+cat(make_table_aov(models, "rmse", format = "latex", escape = FALSE))
+```
+

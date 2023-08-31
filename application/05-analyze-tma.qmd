@@ -1,0 +1,352 @@
+---
+title: "04 TMA - analyze results"
+format: 
+  html:
+    fig-width: 8
+    fig-height: 4
+    code-fold: true
+editor: visual
+---
+
+```{r, setup}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(here)
+library(glue)
+library(ggbeeswarm)
+library(ggfortify)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+kable_standard <- function(...) {
+    kable(booktabs = TRUE, linesep = "", ...) %>% 
+        kable_styling(full_width = FALSE)
+}
+
+`%ni%` <- Negate(`%in%`)
+```
+
+```{r, data}
+#| warning: false
+#| message: false
+
+# Read in data
+res_dir <- "application/results"
+df_metrics <- read_csv(here(res_dir, "tma_test_metrics.csv"))
+df_gridsearch <- read_csv(here(res_dir, "tma_gridsearch_summary.csv"))
+df_att <- read_csv(here(res_dir, "tma_attention-weights.csv"))
+df_prog <- read_csv(here(res_dir, "tma_train-val_progression.csv"))
+
+omisvm_results <- readRDS(here(res_dir, "per-tma_results-mod.rds")) # copied from omisvm-sims/results/
+```
+
+## Experiment
+
+Factors used:
+
+``` python
+{
+    "mil_pool_combo": [
+        [MILType.CAP_MI_NET, "max"], 
+        [MILType.MI_ATTENTION, None]
+    ],
+    "metric": ["mae", "accuracy"],
+    "rep": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "epochs": [150],
+}
+```
+
+Gridsearch parameters:
+
+``` python
+{
+    "ordinal_method": [OrdinalType.CORAL, OrdinalType.CORN],
+    "learning_rate": [0.01, 0.0005, 0.00001],
+    "n_fc_layers": [1, 2],
+    "fc_layer_size": [200, 400, 800],
+}
+```
+
+## Results
+
+### Performance compared to SVM-based models
+
+```{r}
+# Re-format results to match close to omisvm-sims
+results_mod <- df_metrics %>% 
+  mutate(
+    method_name = case_when(
+      mil_method == "CAP_MI_NET" ~ "Ordinal MI-net (max)",
+      mil_method == "MI_ATTENTION" ~ "Ordinal MI-net (attention)"
+    ), 
+    metric = if_else(metric == "accuracy", "mzoe", metric),
+    mzoe = 1 - acc,
+    mean_metric = case_when(
+      metric == "mae" ~ mae,
+      metric == "mzoe" ~ mzoe
+    )
+  )
+
+```
+
+```{r}
+#' Create methods df for plotting
+methods_to_show <- function() {
+  tibble::tribble(
+    ~method, ~short_name, ~color, ~face, 
+    "MIOR (corrected)", "MIOR (corrected)", "#1b9e77", "plain",
+    "MIOR (xiao)", "MIOR (as written)", "#d95f02", "plain",
+    "SVOR_EXC", "SI-SVOREXC", "#66a61e", "plain",
+    "MISVM_OROVA", "MI-SVM (OVA)", "#e7298a", "plain",
+    "OMISVM", "OMI-SVM", "#7570b3", "plain",
+    "Ordinal MI-net (attention)", "OR MI-net (attention)", "#0F94D2", "bold",
+    "Ordinal MI-net (max)", "OR MI-net (max)", "#095E86", "bold"
+  )
+}
+
+
+plot_data_tma <- function(df, .metric) {
+  df %>% 
+    filter(metric == .metric) %>% 
+    ggplot(aes(x = mean_metric, 
+               y = method_name, 
+               color = method_name)) +
+    geom_vline(xintercept = 0, color = "grey70") +   
+    ggbeeswarm::geom_beeswarm(aes(color = method_name, 
+                                  group = method_name),
+                              alpha = 0.6, 
+                              groupOnX = FALSE) +
+    stat_summary(geom = "errorbar",
+                 color = "grey20", 
+                 fun.min = ~mean(.x, na.rm = TRUE),
+                 fun.max = ~mean(.x, na.rm = TRUE)) +
+    scale_y_discrete(limits = methods_to_show()$method,
+                     labels = methods_to_show()$short_name) +
+    scale_color_manual(limits = methods_to_show()$method,
+                       labels = methods_to_show()$short_name,
+                       values = methods_to_show()$color) +
+    theme_light() +
+    theme(legend.position = "none") +
+    labs(x = str_to_upper(.metric),
+         y = NULL)
+}
+```
+
+```{r}
+#| label: fig-1-tma-mzoe-mae
+#| fig-cap: MZOE and MAE performance on TMA data set. Each point represents the results of one replication of 10-fold CV, and each black line represents the average across all replications.
+#| warning: false
+metrics <- c("mae", "mzoe") %>% set_names()
+
+p <- imap(metrics, ~plot_data_tma(bind_rows(results_mod, omisvm_results), .x))
+
+p_tma <- (p$mae / p$mzoe) & 
+  theme(axis.text.y = element_text(face = methods_to_show()$face))
+print(p_tma)
+
+ggsave(here(res_dir, "tma_mzoe-mae-vs-methods.pdf"), p_tma, width = 8, height = 4)
+
+```
+
+### Common hyperparameters
+
+For each model (max vs attention) and metrics (mae vs acc), list the most common of each of the hyperparameter options and which % it has.
+
+```{r}
+
+model_vars <- c("mil_method", "pooling_mode", "mil_pool_combo", "metric")
+hp_vars <- c("ordinal_method", "learning_rate", "n_fc_layers", "fc_layer_size")
+
+tmp <- df_gridsearch %>% 
+  mutate(ordinal_method = str_remove_all(ordinal_method, "OrdinalType.")) %>% 
+  group_by(across(all_of(model_vars)), rep) %>%
+  slice_max(metric_avg, n = 1, with_ties = FALSE) %>% 
+  ungroup()
+
+df_best_hp <- tmp %>% 
+  group_by(across(all_of(model_vars))) %>% 
+  summarize(
+    across(c(ordinal_method, learning_rate, n_fc_layers, fc_layer_size),
+           list(
+             best_hp = ~names(which.max(table(.x)))[1],
+             pct_best = ~max(table(.x) / length(.x))
+           )
+    ),
+    .groups = "drop"
+  )
+```
+
+```{r}
+
+header <- c(3, rep(2, length(hp_vars)))
+names(header) <- c(" ", str_to_sentence(str_replace_all(hp_vars, "_", " ")))
+
+ 
+df_best_hp %>% 
+  select(-mil_pool_combo) %>% 
+  mutate(across(ends_with("pct_best"), ~scales::percent(.x))) %>% 
+  kable_standard(
+    col.names = c("MIL", "Pool", "Metric", rep(c("Best", "Freq"), length(hp_vars))),
+    align = "lllrrrrrrrr", 
+  ) %>% 
+  add_header_above(header)
+  
+
+
+```
+
+This information is probably best to put in an appendix.
+
+
+### Distribution of attention weights
+
+```{r}
+#| eval: false
+
+df_att %>% 
+  pivot_longer(c(X1, X2, X3)) %>% 
+  ggplot(aes(value)) +
+  geom_histogram() +
+  facet_wrap(~metric + rep)
+
+```
+
+
+```{r}
+#| fig-cap: Distribution of attention weights for each of the MI-ATTENTION models. Maximal weights in each bag are shown, which range from 0.33 to 1 based on a bag-size of 3. Replications are ordered so the best performing ones on top. 
+
+plot_order <- 
+  df_metrics %>% 
+  filter(mil_method == "MI_ATTENTION") %>% 
+  mutate(
+    metric_val = if_else(metric == "mae", mae, 1-acc), 
+    group = as.factor(paste0(rep, metric)),
+    group = fct_reorder(group, metric_val, min)
+  ) %>% 
+  pull(group) %>% 
+  levels()
+
+plot_data <- 
+  df_att %>% 
+  mutate(
+    max_weight = pmax(X1, X2, X3),
+    metric2 = str_to_upper(if_else(metric == "mae", "MAE", "MZOE"))
+  )
+
+p_att <- 
+  plot_data %>% 
+  ggplot(aes(
+    x=max_weight, 
+    y=factor(paste0(rep, metric), levels = rev(plot_order))
+  )) +
+  geom_vline(xintercept = 0.33, linetype = "dashed", color = "grey40") + 
+  geom_boxplot(color = "#247F68") +
+  scale_x_continuous(
+    limits = c(0, 1), 
+    breaks = c(0:5 / 5, 0.33), 
+    minor_breaks = 0:10 / 10
+    # labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_bw() +
+  theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) + 
+  labs(
+    x = "Highest attention weight",
+    y = "Replication"
+  )
+
+metrics <- c("MAE", "MZOE") %>% set_names()
+
+
+p_att_v2 <- imap(metrics, 
+                 ~p_att %+% filter(plot_data, metric2 == .x) %+% ggtitle(glue("Models optimizing {.x}")))
+
+p_att_v2 <- (p_att_v2$MAE / p_att_v2$MZOE) 
+print(p_att_v2)
+
+
+print(p_att + facet_wrap(~metric2, ncol=1, scales = "free_y"))
+ggsave(here(res_dir, "tma_attention-weights.pdf"), p_att_v2, width = 8, height = 6)
+```
+
+
+### Training progress 
+
+```{r}
+plot_training_progression <- function(df, metric, group, alpha = 1) {
+  
+  df %>% 
+    ggplot(aes(
+      x = epoch, 
+      y = {{ metric }},
+      group = file, 
+      color = {{ group }} # paste0(ordinal_method, " ", mil_method))
+    )) + 
+    geom_line(alpha = alpha) +
+    scale_y_log10() +
+    guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
+    theme_minimal() +
+    labs(color = "") +
+    theme(legend.position = "bottom") +
+    labs(
+      title = glue("Training progress")
+    )
+}
+```
+
+
+```{r}
+plot_training_progression(df_prog, loss, group = mil_pool_combo, alpha = 0.7) +
+  facet_wrap(~metric)
+```
+
+```{r}
+plot_training_progression(df_prog, mean_absolute_error_labels, group = mil_pool_combo, alpha = 0.7) +
+  facet_wrap(~metric)
+```
+
+```{r}
+plot_training_progression(df_prog, accuracy, group = mil_pool_combo, alpha = 0.7) +
+  facet_wrap(~metric)
+```
+
+Seems like the MI-Attention may still be learning, but this could also be the start of overfitting. Since we don't have a validation set, it's hard to interpret this exactly. 
+
+
+## Appendix
+
+Latex code to produce hyperparameter table for paper
+
+```{r}
+
+header <- c(1, rep(2, length(hp_vars)))
+names(header) <- c(" ", str_to_sentence(str_replace_all(hp_vars, "_", " ")))
+
+tbl <- df_best_hp %>% 
+  mutate(
+    method_name = case_when(
+      mil_method == "CAP_MI_NET" ~ "Ordinal MI-net (max)",
+      mil_method == "MI_ATTENTION" ~ "Ordinal MI-net (attention)"
+    ),
+    metric2 = if_else(metric == "mae", "MAE", "MZOE")
+  ) %>% 
+  select(method_name, metric2, everything()) %>% 
+  mutate(across(ends_with("pct_best"), ~scales::percent(.x))) %>% 
+  arrange(metric2) %>%
+  select(-mil_method, -pooling_mode, -mil_pool_combo, -metric, -metric2) %>% 
+  kable_standard(
+    "latex",
+    col.names = c(" ", rep(c("Best", "Freq"), length(hp_vars))),
+    align = "lrrrrrrrr", 
+    caption = "Summary of hyperparameter gridserach"
+  ) %>% 
+  add_header_above(header) %>% 
+  pack_rows(index=c("MAE" = 2, "MZOE" = 2))
+
+# tbl
+cat(tbl)
+
+
+```

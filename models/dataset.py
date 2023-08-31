@@ -4,7 +4,6 @@ from enum import Enum
 
 class DataSetType(Enum):
     FGNET = "fgnet"
-    AES = "aes"
     BCNB_ALN = "bcnb"
     AMREV_TV = "amrev_tv"
     IMDB = "imdb"
@@ -35,24 +34,6 @@ DATASET_PARAM = {
             "brightness_delta": 0.2,
             "hue_delta": 0.1,
             "quality_min": 50,
-            "quality_max": 100,
-        },
-    },
-    DataSetType.AES: {
-        "dir": "datasets/aes/",
-        "splits_dir": "splits_bag/",
-        "x_col": "img_name",
-        "y_col": "score",
-        "img_size": (128, 128, 3),  # matches Shi, Cao, and Raschka (2022)
-        "n_classes": 5,
-        "augmentation_args": {
-            "horizontal_flip": False,
-            "crop_range": 0.05,
-            "contrast_lower": 0.75,
-            "contrast_upper": 1.5,
-            "brightness_delta": 0.1,
-            "hue_delta": 0.1,
-            "quality_min": 75,
             "quality_max": 100,
         },
     },
@@ -139,19 +120,19 @@ class DataSet:
     Attributes
     ----------
     data_set_type : DataSetType
-        The data set type which directly maps to information about the directory to use, x and y 
+        The data set type which directly maps to information about the directory to use, x and y
         columns, image size, and more. See DATASET_PARAM
-    name : str 
+    name : str
         The name of the dataset.
     params : dict
         The data set parameters, including 'dir', 'x_col', 'y_col', 'img_size', 'n_classes',
-        'class_indices', and 'augmentation_args'. 
+        'class_indices', and 'augmentation_args'.
     train : str
-        The file that describes the training information. 
+        The file that describes the training information.
     test : str
-        The file that describes the testing information. 
+        The file that describes the testing information.
     valid : str
-        The file that describes the validation information. 
+        The file that describes the validation information.
     """
 
     data_set_type: DataSetType
@@ -172,4 +153,3 @@ class DataSet:
     @property
     def valid(self) -> str:
         return self.params["splits_dir"] + self.name + "_valid.csv"
-

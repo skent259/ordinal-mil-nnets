@@ -2,7 +2,7 @@
 
 # EXECUTION FILE
 universe    =   vanilla
-batch_name  =   amrev-4.0.1
+batch_name  =   amrev-4.0.1-re
 initialdir  =   /home/spkent/ordinal-mil-nnets
 
 executable  =   condor/condor_main.sh
@@ -16,8 +16,8 @@ transfer_input_files = condor/condor_main.py, experiment/params/experiment-amrev
 
 # RESOURCES
 request_cpus = 1
-request_memory = 32GB
-request_disk = 32GB
+request_memory = 30GB
+request_disk = 30GB
 requirements = (Target.HasCHTCStaging == true)
 +LongJob = TRUE
 # requirements = (HasChtcSoftware == true)

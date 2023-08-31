@@ -53,7 +53,7 @@ class ModelArchitecture:
     Model architecture to be used by experiment methods
 
     NOTE: If MILType is MI_ATTENTION or MI_GATED_ATTENTION, pooling_mode will be ignored and the implicit structure is
-    close to that or CAP_MI_NET. 
+    close to that or CAP_MI_NET.
     """
 
     ordinal_type: OrdinalType
@@ -62,6 +62,7 @@ class ModelArchitecture:
     data_set_img_size: Tuple[int]
     n_classes: int
     pooling_mode: str = "max"
+    learning_rate: float = 0.05
 
     def build(self):
         inputs = self.input_layer()
@@ -71,7 +72,7 @@ class ModelArchitecture:
         if self.mil_type is not MILType.CAP_MI_NET_DS:
             model = Model(inputs=inputs, outputs=last)
             model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
                 loss=self.ordinal_loss,
                 metrics=self.ordinal_metrics,
             )
@@ -79,11 +80,9 @@ class ModelArchitecture:
             out_names = [x.name.split("/", 1)[0] for x in last]  # hack-y way
             out_weights = [1.0 for _ in range(len(last) - 1)] + [0.0]
 
-            model = tf.keras.Model(
-                inputs=inputs, outputs=last, name="MI-net_corn_resnet"
-            )
+            model = tf.keras.Model(inputs=inputs, outputs=last, name="keras_model")
             model.compile(
-                optimizer=tf.keras.optimizers.Adam(learning_rate=0.05),
+                optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate),
                 loss={i: self.ordinal_loss for i in out_names},
                 loss_weights={i: j for (i, j) in zip(out_names, out_weights)},
                 metrics=self.ordinal_metrics,
@@ -131,47 +130,6 @@ class ModelArchitecture:
                 ]
             else:
                 x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
-
-            return x_out
-
-        if self.data_set_type is DataSetType.AES:
-
-            # ResNet 34, as in Shi, Cao, and Raschka (2022)
-            # https://www.kaggle.com/datasets/pytorch/resnet34
-            x1 = BagWise(
-                Conv2D(64, (7, 7), strides=2, padding="same", activation="relu")
-            )(layer)
-            x1 = BagWise(MaxPooling2D(pool_size=(3, 3), strides=2))(x1)
-
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-            x1 = bagwise_residual_block(x1, 64, (3, 3), stride=1, nonlinearity="relu")
-
-            x2 = bagwise_residual_block(x1, 128, (3, 3), stride=2, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-            x2 = bagwise_residual_block(x2, 128, (3, 3), stride=1, nonlinearity="relu")
-
-            x3 = bagwise_residual_block(x2, 256, (3, 3), stride=2, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-            x3 = bagwise_residual_block(x3, 256, (3, 3), stride=1, nonlinearity="relu")
-
-            x4 = bagwise_residual_block(x3, 512, (3, 3), stride=2, nonlinearity="relu")
-            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
-            x4 = bagwise_residual_block(x4, 512, (3, 3), stride=1, nonlinearity="relu")
-
-            if self.mil_type is MILType.CAP_MI_NET_DS:
-                x_out = [
-                    BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x)
-                    for x in [x1, x2, x3, x4]
-                ]
-                x_out = [Dense(1000, activation="relu")(x) for x in x_out]
-            else:
-                x_out = BagWise(GlobalAveragePooling2D(data_format="channels_last"))(x4)
-                x_out = BagWise(Dense(1000, activation="relu"))(x_out)
 
             return x_out
 
@@ -331,4 +289,3 @@ class ModelArchitecture:
             OrdinalType.CLM_QWK_CLOGLOG: "accuracy",
         }
         return [metric[self.ordinal_type]]
-
